@@ -6,6 +6,8 @@ import Dashboard from "@/pages/Dashboard";
 import Admin from "@/pages/Admin";
 import RecurringTasks from "@/pages/RecurringTasks";
 import AnnualTracking from "@/pages/AnnualTracking";
+import Projects from "@/pages/Projects";
+import ProjectView from "@/pages/ProjectView";
 
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -19,6 +21,8 @@ function Router() {
       <Route path={"/admin"} component={Admin} />
       <Route path={"/recurring"} component={RecurringTasks} />
       <Route path={"/annual"} component={AnnualTracking} />
+      <Route path={"/projects"} component={Projects} />
+      <Route path={"/projects/:id"} component={ProjectView} />
 
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
