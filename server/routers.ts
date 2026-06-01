@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, listTasksByProject, reorderProjectTasks } from "./db";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -34,6 +34,9 @@ export const appRouter = router({
         priority: z.enum(["low", "medium", "high"]).default("medium"),
         dueDate: z.date().optional(),
         quadrant: z.enum(["urgent-important", "not-urgent-important", "urgent-not-important", "not-urgent-not-important"]).optional(),
+        projectId: z.number().optional(),
+        status: z.enum(["todo", "in_progress", "done"]).optional(),
+        startDate: z.date().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const result = await createTask(ctx.user.id, {
@@ -44,6 +47,9 @@ export const appRouter = router({
           dueDate: input.dueDate,
           quadrant: input.quadrant,
           order: 0,
+          projectId: input.projectId,
+          status: input.status,
+          startDate: input.startDate,
         });
         return result;
       }),
@@ -58,6 +64,9 @@ export const appRouter = router({
         completed: z.boolean().optional(),
         dueDate: z.date().optional(),
         order: z.number().optional(),
+        projectId: z.number().nullable().optional(),
+        status: z.enum(["todo", "in_progress", "done"]).optional(),
+        startDate: z.date().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { id, ...updates } = input;
@@ -87,6 +96,31 @@ export const appRouter = router({
         const result = await swapTaskOrder(input.taskId, input.targetTaskId, ctx.user.id);
         return result;
       }),
+
+    listByProject: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ ctx, input }) => listTasksByProject(ctx.user.id, input.projectId)),
+
+    setStatus: protectedProcedure
+      .input(z.object({ id: z.number(), status: z.enum(["todo", "in_progress", "done"]) }))
+      .mutation(async ({ ctx, input }) => updateTask(input.id, ctx.user.id, { status: input.status })),
+
+    reorder: protectedProcedure
+      .input(z.object({ projectId: z.number(), orderedIds: z.array(z.number()) }))
+      .mutation(async ({ ctx, input }) => reorderProjectTasks(ctx.user.id, input.orderedIds)),
+  }),
+
+  projects: router({
+    list: protectedProcedure.query(async ({ ctx }) => listProjects(ctx.user.id)),
+    create: protectedProcedure
+      .input(z.object({ name: z.string().min(1).max(100), color: z.string().max(20).optional(), description: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => createProject(ctx.user.id, input.name, input.color, input.description)),
+    update: protectedProcedure
+      .input(z.object({ id: z.number(), name: z.string().min(1).max(100).optional(), color: z.string().max(20).optional(), description: z.string().optional(), order: z.number().optional() }))
+      .mutation(async ({ ctx, input }) => { const { id, ...u } = input; return updateProject(ctx.user.id, id, u); }),
+    archive: protectedProcedure
+      .input(z.object({ id: z.number(), archived: z.boolean() }))
+      .mutation(async ({ ctx, input }) => archiveProject(ctx.user.id, input.id, input.archived)),
   }),
 
   banner: router({
