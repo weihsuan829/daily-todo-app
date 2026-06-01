@@ -13,6 +13,7 @@ import { InteractiveTaskCard } from "@/components/InteractiveTaskCard";
 import { Banner } from "@/components/Banner";
 import { TaskNotesModal } from "@/components/TaskNotesModal";
 import { EisenhowerMatrix } from "./EisenhowerMatrix";
+import ProjectSidebarSection from "@/components/project/ProjectSidebarSection";
 
 type Category = "work" | "life" | "eisenhower";
 
@@ -349,6 +350,8 @@ export default function TaskList() {
                     </button>
                   </div>
                 </div>
+
+                <ProjectSidebarSection />
 
                 {/* 統計 */}
                 <div className="mt-6 pt-6 border-t border-white/10 space-y-2">
