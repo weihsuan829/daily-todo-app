@@ -1,4 +1,4 @@
-import { eq, and, asc, desc } from "drizzle-orm";
+import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -218,7 +218,9 @@ export async function createTask(userId: number, task: Omit<InsertTask, 'userId'
         .where(
           and(
             eq(tasks.userId, userId),
-            eq(tasks.category, task.category)
+            task.category != null
+              ? eq(tasks.category, task.category)
+              : isNull(tasks.category)
           )
         );
       

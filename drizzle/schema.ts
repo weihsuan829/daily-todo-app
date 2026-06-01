@@ -32,11 +32,14 @@ export type InsertUser = typeof users.$inferInsert;
 export const tasks = mysqlTable("tasks", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
-  category: mysqlEnum("category", ["work", "life", "eisenhower"]).notNull(),
+  category: mysqlEnum("category", ["work", "life", "eisenhower"]),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
   quadrant: mysqlEnum("quadrant", ["urgent-important", "not-urgent-important", "urgent-not-important", "not-urgent-not-important"]),
+  projectId: int("projectId"),
+  status: mysqlEnum("status", ["todo", "in_progress", "done"]).default("todo").notNull(),
+  startDate: timestamp("startDate"),
   completed: boolean("completed").default(false).notNull(),
   completedAt: timestamp("completedAt"),
   dueDate: timestamp("dueDate"),
@@ -47,6 +50,40 @@ export const tasks = mysqlTable("tasks", {
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
+
+export const workspaces = mysqlTable("workspaces", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  ownerId: int("ownerId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Workspace = typeof workspaces.$inferSelect;
+export type InsertWorkspace = typeof workspaces.$inferInsert;
+
+export const workspaceMembers = mysqlTable("workspace_members", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspaceId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["owner", "member"]).default("owner").notNull(),
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+});
+export type WorkspaceMember = typeof workspaceMembers.$inferSelect;
+export type InsertWorkspaceMember = typeof workspaceMembers.$inferInsert;
+
+export const projects = mysqlTable("projects", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspaceId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  color: varchar("color", { length: 20 }).default("#3b82f6").notNull(),
+  description: text("description"),
+  archived: boolean("archived").default(false).notNull(),
+  order: int("order").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Project = typeof projects.$inferSelect;
+export type InsertProject = typeof projects.$inferInsert;
 
 /**
  * Deleted recurring task instances table
