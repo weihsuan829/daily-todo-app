@@ -1,7 +1,8 @@
 import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances } from "../drizzle/schema";
+import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { applyStatusCompletionSync } from "./taskStatus";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -264,12 +265,10 @@ export async function updateTask(taskId: number, userId: number, updates: Partia
   }
 
   try {
+    const synced = applyStatusCompletionSync(updates);
     const result = await db
       .update(tasks)
-      .set({
-        ...updates,
-        updatedAt: new Date(),
-      })
+      .set({ ...synced, updatedAt: new Date() })
       .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)));
     return result;
   } catch (error) {
@@ -918,4 +917,78 @@ export async function upsertTrackingRecord(itemId: number, weekNumber: number, d
     console.error("[Database] Failed to upsert tracking record:", error);
     throw error;
   }
+}
+
+// ---- Workspaces ----
+export async function ensureDefaultWorkspace(userId: number): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await db.select().from(workspaces).where(eq(workspaces.ownerId, userId)).limit(1);
+  if (existing.length > 0) return existing[0].id;
+  await db.insert(workspaces).values({ name: "My Workspace", ownerId: userId });
+  const ws = await db.select().from(workspaces).where(eq(workspaces.ownerId, userId)).limit(1);
+  if (ws.length === 0) return null;
+  await db.insert(workspaceMembers).values({ workspaceId: ws[0].id, userId, role: "owner" });
+  return ws[0].id;
+}
+
+// ---- Projects ----
+export async function listProjects(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const wsId = await ensureDefaultWorkspace(userId);
+  if (!wsId) return [];
+  return db.select().from(projects)
+    .where(and(eq(projects.workspaceId, wsId), eq(projects.archived, false)))
+    .orderBy(asc(projects.order));
+}
+
+export async function createProject(userId: number, name: string, color?: string, description?: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const wsId = await ensureDefaultWorkspace(userId);
+  if (!wsId) return null;
+  const existing = await db.select().from(projects).where(eq(projects.workspaceId, wsId));
+  const order = existing.length > 0 ? Math.max(...existing.map((p) => p.order)) + 1 : 0;
+  return db.insert(projects).values({ workspaceId: wsId, name, color, description, order });
+}
+
+async function userOwnsProject(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, userId: number, projectId: number) {
+  const rows = await db.select().from(projects)
+    .innerJoin(workspaces, eq(projects.workspaceId, workspaces.id))
+    .where(and(eq(projects.id, projectId), eq(workspaces.ownerId, userId))).limit(1);
+  return rows.length > 0;
+}
+
+export async function updateProject(userId: number, projectId: number, updates: Partial<Pick<Project, "name" | "color" | "description" | "order">>) {
+  const db = await getDb();
+  if (!db) return null;
+  if (!(await userOwnsProject(db, userId, projectId))) return null;
+  return db.update(projects).set({ ...updates, updatedAt: new Date() }).where(eq(projects.id, projectId));
+}
+
+export async function archiveProject(userId: number, projectId: number, archived: boolean) {
+  const db = await getDb();
+  if (!db) return null;
+  if (!(await userOwnsProject(db, userId, projectId))) return null;
+  return db.update(projects).set({ archived, updatedAt: new Date() }).where(eq(projects.id, projectId));
+}
+
+export async function listTasksByProject(userId: number, projectId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  if (!(await userOwnsProject(db, userId, projectId))) return [];
+  return db.select().from(tasks)
+    .where(and(eq(tasks.userId, userId), eq(tasks.projectId, projectId)))
+    .orderBy(asc(tasks.order), desc(tasks.createdAt));
+}
+
+export async function reorderProjectTasks(userId: number, orderedIds: number[]) {
+  const db = await getDb();
+  if (!db) return null;
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db.update(tasks).set({ order: i })
+      .where(and(eq(tasks.id, orderedIds[i]), eq(tasks.userId, userId)));
+  }
+  return { success: true };
 }
