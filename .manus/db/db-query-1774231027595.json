@@ -1,0 +1,19 @@
+{
+  "query": "SELECT id, userId, category, title, completed, dueDate, createdAt FROM tasks WHERE category = 'life' ORDER BY createdAt DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT id, userId, category, title, completed, dueDate, createdAt FROM tasks WHERE category = 'life' ORDER BY createdAt DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "150006",
+      "userId": "1",
+      "category": "life",
+      "title": "Default Priority Task",
+      "completed": "0",
+      "dueDate": "NULL",
+      "createdAt": "2026-03-23 01:53:36"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuserId\tcategory\ttitle\tcompleted\tdueDate\tcreatedAt\n150006\t1\tlife\tDefault Priority Task\t0\tNULL\t2026-03-23 01:53:36\n",
+  "stderr": "",
+  "execution_time_ms": 1646
+}

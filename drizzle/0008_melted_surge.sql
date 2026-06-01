@@ -1,0 +1,2 @@
+ALTER TABLE `recurring_tasks` MODIFY COLUMN `category` enum('work','life','eisenhower') NOT NULL;--> statement-breakpoint
+ALTER TABLE `tasks` MODIFY COLUMN `category` enum('work','life','eisenhower') NOT NULL;

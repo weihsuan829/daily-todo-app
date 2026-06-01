@@ -1,0 +1,122 @@
+{
+  "query": "\n-- Check all work tasks with dates\nSELECT \n  id, \n  title, \n  category, \n  dueDate,\n  `order`, \n  completed \nFROM tasks \nWHERE category = 'work' \n  AND dueDate IS NOT NULL\nORDER BY dueDate, `order`\nLIMIT 30;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute \n-- Check all work tasks with dates\nSELECT \n  id, \n  title, \n  category, \n  dueDate,\n  `order`, \n  completed \nFROM tasks \nWHERE category = 'work' \n  AND dueDate IS NOT NULL\nORDER BY dueDate, `order`\nLIMIT 30;\n",
+  "rows": [
+    {
+      "id": "270007",
+      "title": "AI KOL風格功能開發",
+      "category": "work",
+      "dueDate": "2026-03-22 16:00:00",
+      "order": "1",
+      "completed": "1"
+    },
+    {
+      "id": "270008",
+      "title": "AI KOL code debug",
+      "category": "work",
+      "dueDate": "2026-03-22 16:00:00",
+      "order": "2",
+      "completed": "1"
+    },
+    {
+      "id": "150024",
+      "title": "15:00 數據課週會",
+      "category": "work",
+      "dueDate": "2026-03-23 16:00:00",
+      "order": "0",
+      "completed": "1"
+    },
+    {
+      "id": "270006",
+      "title": "分析悠遊可公關之商品",
+      "category": "work",
+      "dueDate": "2026-03-23 16:00:00",
+      "order": "1",
+      "completed": "1"
+    },
+    {
+      "id": "270009",
+      "title": "AI KOL P1變數定義",
+      "category": "work",
+      "dueDate": "2026-03-23 16:00:00",
+      "order": "2",
+      "completed": "1"
+    },
+    {
+      "id": "300001",
+      "title": "提前預定下午茶(?)",
+      "category": "work",
+      "dueDate": "2026-03-24 16:00:00",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "210002",
+      "title": "14:00 讀書會討論",
+      "category": "work",
+      "dueDate": "2026-03-24 16:00:00",
+      "order": "1",
+      "completed": "0"
+    },
+    {
+      "id": "210001",
+      "title": "10:00 自動化行銷例會",
+      "category": "work",
+      "dueDate": "2026-03-24 16:00:00",
+      "order": "4",
+      "completed": "0"
+    },
+    {
+      "id": "150025",
+      "title": "15:00 EZcard 內部週會",
+      "category": "work",
+      "dueDate": "2026-03-25 16:00:00",
+      "order": "0",
+      "completed": "1"
+    },
+    {
+      "id": "360001",
+      "title": "花博展覽-AI科技",
+      "category": "work",
+      "dueDate": "2026-03-25 16:00:00",
+      "order": "4",
+      "completed": "0"
+    },
+    {
+      "id": "360002",
+      "title": "NCCU meeting",
+      "category": "work",
+      "dueDate": "2026-03-25 16:00:00",
+      "order": "5",
+      "completed": "0"
+    },
+    {
+      "id": "270005",
+      "title": "生活體驗社期初大會",
+      "category": "work",
+      "dueDate": "2026-03-26 16:00:00",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "420001",
+      "title": "修復AI KOL P2型別",
+      "category": "work",
+      "dueDate": "2026-03-26 16:00:00",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "150026",
+      "title": "讀書會",
+      "category": "work",
+      "dueDate": "2026-03-26 16:00:00",
+      "order": "1",
+      "completed": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tcategory\tdueDate\torder\tcompleted\n270007\tAI KOL風格功能開發\twork\t2026-03-22 16:00:00\t1\t1\n270008\tAI KOL code debug\twork\t2026-03-22 16:00:00\t2\t1\n150024\t15:00 數據課週會\twork\t2026-03-23 16:00:00\t0\t1\n270006\t分析悠遊可公關之商品\twork\t2026-03-23 16:00:00\t1\t1\n270009\tAI KOL P1變數定義\twork\t2026-03-23 16:00:00\t2\t1\n300001\t提前預定下午茶(?)\twork\t2026-03-24 16:00:00\t0\t0\n210002\t14:00 讀書會討論\twork\t2026-03-24 16:00:00\t1\t0\n210001\t10:00 自動化行銷例會\twork\t2026-03-24 16:00:00\t4\t0\n150025\t15:00 EZcard 內部週會\twork\t2026-03-25 16:00:00\t0\t1\n360001\t花博展覽-AI科技\twork\t2026-03-25 16:00:00\t4\t0\n360002\tNCCU meeting\twork\t2026-03-25 16:00:00\t5\t0\n270005\t生活體驗社期初大會\twork\t2026-03-26 16:00:00\t0\t0\n420001\t修復AI KOL P2型別\twork\t2026-03-26 16:00:00\t0\t0\n150026\t讀書會\twork\t2026-03-26 16:00:00\t1\t0\n",
+  "stderr": "",
+  "execution_time_ms": 1487
+}

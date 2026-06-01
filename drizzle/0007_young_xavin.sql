@@ -1,0 +1,1 @@
+ALTER TABLE `tasks` ADD `quadrant` enum('urgent-important','not-urgent-important','urgent-not-important','not-urgent-not-important');

@@ -1,0 +1,69 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1774065966882,
+      "tag": "0000_normal_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1774066126005,
+      "tag": "0001_tidy_manta",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1774075447688,
+      "tag": "0002_sour_captain_stacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1774232777327,
+      "tag": "0003_lowly_hannibal_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1774581912714,
+      "tag": "0004_bitter_apocalypse",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1774837780036,
+      "tag": "0005_same_tusk",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1775011790400,
+      "tag": "0006_parallel_hairball",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1778654079375,
+      "tag": "0007_young_xavin",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1778656575161,
+      "tag": "0008_melted_surge",
+      "breakpoints": true
+    }
+  ]
+}

@@ -1,0 +1,178 @@
+{
+  "query": "\n-- First, check the current state of tasks\nSELECT id, title, category, dueDate, `order`, completed FROM tasks WHERE category = 'work' ORDER BY dueDate, id LIMIT 10;\n\n-- Update order values based on task ID and date\nUPDATE tasks \nSET `order` = CASE \n  WHEN dueDate IS NOT NULL THEN (\n    SELECT COUNT(*) FROM tasks t2 \n    WHERE t2.dueDate = tasks.dueDate \n    AND t2.id < tasks.id\n  )\n  ELSE 0\nEND\nWHERE dueDate IS NOT NULL;\n\n-- Verify the update\nSELECT id, title, category, dueDate, `order`, completed FROM tasks WHERE category = 'work' ORDER BY dueDate, `order` LIMIT 10;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute \n-- First, check the current state of tasks\nSELECT id, title, category, dueDate, `order`, completed FROM tasks WHERE category = 'work' ORDER BY dueDate, id LIMIT 10;\n\n-- Update order values based on task ID and date\nUPDATE tasks \nSET `order` = CASE \n  WHEN dueDate IS NOT NULL THEN (\n    SELECT COUNT(*) FROM tasks t2 \n    WHERE t2.dueDate = tasks.dueDate \n    AND t2.id < tasks.id\n  )\n  ELSE 0\nEND\nWHERE dueDate IS NOT NULL;\n\n-- Verify the update\nSELECT id, title, category, dueDate, `order`, completed FROM tasks WHERE category = 'work' ORDER BY dueDate, `order` LIMIT 10;\n",
+  "rows": [
+    {
+      "id": "390001",
+      "title": "Test Task",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390003",
+      "title": "Task to Update",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390004",
+      "title": "Task to Delete",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390005",
+      "title": "Test Task",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390007",
+      "title": "Task to Update",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390008",
+      "title": "Task to Delete",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "270007",
+      "title": "AI KOL風格功能開發",
+      "category": "work",
+      "dueDate": "2026-03-22 16:00:00",
+      "order": "0",
+      "completed": "1"
+    },
+    {
+      "id": "270008",
+      "title": "AI KOL code debug",
+      "category": "work",
+      "dueDate": "2026-03-22 16:00:00",
+      "order": "0",
+      "completed": "1"
+    },
+    {
+      "id": "150024",
+      "title": "15:00 數據課週會",
+      "category": "work",
+      "dueDate": "2026-03-23 16:00:00",
+      "order": "0",
+      "completed": "1"
+    },
+    {
+      "id": "270006",
+      "title": "分析悠遊可公關之商品",
+      "category": "work",
+      "dueDate": "2026-03-23 16:00:00",
+      "order": "0",
+      "completed": "1"
+    },
+    {
+      "id": "id",
+      "title": "title",
+      "category": "category",
+      "dueDate": "dueDate",
+      "order": "order",
+      "completed": "completed"
+    },
+    {
+      "id": "390008",
+      "title": "Task to Delete",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390003",
+      "title": "Task to Update",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390007",
+      "title": "Task to Update",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390004",
+      "title": "Task to Delete",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390005",
+      "title": "Test Task",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "390001",
+      "title": "Test Task",
+      "category": "work",
+      "dueDate": "NULL",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "270007",
+      "title": "AI KOL風格功能開發",
+      "category": "work",
+      "dueDate": "2026-03-22 16:00:00",
+      "order": "1",
+      "completed": "1"
+    },
+    {
+      "id": "270008",
+      "title": "AI KOL code debug",
+      "category": "work",
+      "dueDate": "2026-03-22 16:00:00",
+      "order": "2",
+      "completed": "1"
+    },
+    {
+      "id": "150024",
+      "title": "15:00 數據課週會",
+      "category": "work",
+      "dueDate": "2026-03-23 16:00:00",
+      "order": "0",
+      "completed": "1"
+    },
+    {
+      "id": "270006",
+      "title": "分析悠遊可公關之商品",
+      "category": "work",
+      "dueDate": "2026-03-23 16:00:00",
+      "order": "1",
+      "completed": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tcategory\tdueDate\torder\tcompleted\n390001\tTest Task\twork\tNULL\t0\t0\n390003\tTask to Update\twork\tNULL\t0\t0\n390004\tTask to Delete\twork\tNULL\t0\t0\n390005\tTest Task\twork\tNULL\t0\t0\n390007\tTask to Update\twork\tNULL\t0\t0\n390008\tTask to Delete\twork\tNULL\t0\t0\n270007\tAI KOL風格功能開發\twork\t2026-03-22 16:00:00\t0\t1\n270008\tAI KOL code debug\twork\t2026-03-22 16:00:00\t0\t1\n150024\t15:00 數據課週會\twork\t2026-03-23 16:00:00\t0\t1\n270006\t分析悠遊可公關之商品\twork\t2026-03-23 16:00:00\t0\t1\nid\ttitle\tcategory\tdueDate\torder\tcompleted\n390008\tTask to Delete\twork\tNULL\t0\t0\n390003\tTask to Update\twork\tNULL\t0\t0\n390007\tTask to Update\twork\tNULL\t0\t0\n390004\tTask to Delete\twork\tNULL\t0\t0\n390005\tTest Task\twork\tNULL\t0\t0\n390001\tTest Task\twork\tNULL\t0\t0\n270007\tAI KOL風格功能開發\twork\t2026-03-22 16:00:00\t1\t1\n270008\tAI KOL code debug\twork\t2026-03-22 16:00:00\t2\t1\n150024\t15:00 數據課週會\twork\t2026-03-23 16:00:00\t0\t1\n270006\t分析悠遊可公關之商品\twork\t2026-03-23 16:00:00\t1\t1\n",
+  "stderr": "",
+  "execution_time_ms": 2184
+}

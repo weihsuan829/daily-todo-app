@@ -1,0 +1,269 @@
+{
+  "query": "SELECT id, title, dueDate, category, `order` FROM tasks ORDER BY dueDate ASC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT id, title, dueDate, category, `order` FROM tasks ORDER BY dueDate ASC;",
+  "rows": [
+    {
+      "id": "390001",
+      "title": "Test Task",
+      "dueDate": "NULL",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "390006",
+      "title": "Default Priority Task",
+      "dueDate": "NULL",
+      "category": "life",
+      "order": "0"
+    },
+    {
+      "id": "390005",
+      "title": "Test Task",
+      "dueDate": "NULL",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "390004",
+      "title": "Task to Delete",
+      "dueDate": "NULL",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "390003",
+      "title": "Task to Update",
+      "dueDate": "NULL",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "390002",
+      "title": "Default Priority Task",
+      "dueDate": "NULL",
+      "category": "life",
+      "order": "0"
+    },
+    {
+      "id": "270008",
+      "title": "AI KOL code debug",
+      "dueDate": "2026-03-22 16:00:00",
+      "category": "work",
+      "order": "1"
+    },
+    {
+      "id": "270007",
+      "title": "AI KOL風格功能開發",
+      "dueDate": "2026-03-22 16:00:00",
+      "category": "work",
+      "order": "2"
+    },
+    {
+      "id": "150029",
+      "title": "8:00 和mina討論行程",
+      "dueDate": "2026-03-22 16:00:00",
+      "category": "life",
+      "order": "0"
+    },
+    {
+      "id": "150024",
+      "title": "15:00 數據課週會",
+      "dueDate": "2026-03-23 16:00:00",
+      "category": "work",
+      "order": "2"
+    },
+    {
+      "id": "270009",
+      "title": "AI KOL P1變數定義",
+      "dueDate": "2026-03-23 16:00:00",
+      "category": "work",
+      "order": "1"
+    },
+    {
+      "id": "480001",
+      "title": "寫日更筆記",
+      "dueDate": "2026-03-23 16:00:00",
+      "category": "life",
+      "order": "0"
+    },
+    {
+      "id": "270006",
+      "title": "分析悠遊可公關之商品",
+      "dueDate": "2026-03-23 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "300015",
+      "title": "WIN:監控驗證",
+      "dueDate": "2026-03-24 16:00:00",
+      "category": "life",
+      "order": "6"
+    },
+    {
+      "id": "270012",
+      "title": "19:00 Claude MAX",
+      "dueDate": "2026-03-24 16:00:00",
+      "category": "life",
+      "order": "3"
+    },
+    {
+      "id": "270013",
+      "title": "21:00 12週計劃(work)",
+      "dueDate": "2026-03-24 16:00:00",
+      "category": "life",
+      "order": "5"
+    },
+    {
+      "id": "210001",
+      "title": "10:00 自動化行銷例會",
+      "dueDate": "2026-03-24 16:00:00",
+      "category": "work",
+      "order": "1"
+    },
+    {
+      "id": "210002",
+      "title": "14:00 讀書會討論",
+      "dueDate": "2026-03-24 16:00:00",
+      "category": "work",
+      "order": "4"
+    },
+    {
+      "id": "300004",
+      "title": "冰箱報帳",
+      "dueDate": "2026-03-24 16:00:00",
+      "category": "life",
+      "order": "2"
+    },
+    {
+      "id": "150025",
+      "title": "15:00 EZcard 內部週會",
+      "dueDate": "2026-03-25 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "300009",
+      "title": "對花費",
+      "dueDate": "2026-03-25 16:00:00",
+      "category": "life",
+      "order": "3"
+    },
+    {
+      "id": "360001",
+      "title": "花博展覽-AI科技",
+      "dueDate": "2026-03-25 16:00:00",
+      "category": "work",
+      "order": "4"
+    },
+    {
+      "id": "300002",
+      "title": "20:00 AI 自媒體",
+      "dueDate": "2026-03-25 16:00:00",
+      "category": "life",
+      "order": "2"
+    },
+    {
+      "id": "270018",
+      "title": "博覽會",
+      "dueDate": "2026-03-25 16:00:00",
+      "category": "life",
+      "order": "1"
+    },
+    {
+      "id": "420001",
+      "title": "修復AI KOL P2型別",
+      "dueDate": "2026-03-26 16:00:00",
+      "category": "work",
+      "order": "2"
+    },
+    {
+      "id": "270005",
+      "title": "生活體驗社期初大會",
+      "dueDate": "2026-03-26 16:00:00",
+      "category": "work",
+      "order": "1"
+    },
+    {
+      "id": "150026",
+      "title": "讀書會",
+      "dueDate": "2026-03-26 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "450002",
+      "title": "NCCU meeting",
+      "dueDate": "2026-03-26 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "450003",
+      "title": "物料追蹤",
+      "dueDate": "2026-03-26 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "270015",
+      "title": "20:00 claw",
+      "dueDate": "2026-03-26 16:00:00",
+      "category": "life",
+      "order": "2"
+    },
+    {
+      "id": "270017",
+      "title": "換人民幣(小寶)",
+      "dueDate": "2026-03-27 16:00:00",
+      "category": "life",
+      "order": "1"
+    },
+    {
+      "id": "270016",
+      "title": "9:00-17:00 AI課",
+      "dueDate": "2026-03-27 16:00:00",
+      "category": "life",
+      "order": "0"
+    },
+    {
+      "id": "510003",
+      "title": "17:00 悠遊雙周會",
+      "dueDate": "2026-03-29 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "510005",
+      "title": "研究meta串接",
+      "dueDate": "2026-03-29 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "510001",
+      "title": "13:30 自動化需求會議",
+      "dueDate": "2026-03-30 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "510002",
+      "title": "15:00 數據課週會",
+      "dueDate": "2026-03-30 16:00:00",
+      "category": "work",
+      "order": "0"
+    },
+    {
+      "id": "510004",
+      "title": "申請生日假",
+      "dueDate": "2026-03-31 16:00:00",
+      "category": "work",
+      "order": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tdueDate\tcategory\torder\n390001\tTest Task\tNULL\twork\t0\n390006\tDefault Priority Task\tNULL\tlife\t0\n390005\tTest Task\tNULL\twork\t0\n390004\tTask to Delete\tNULL\twork\t0\n390003\tTask to Update\tNULL\twork\t0\n390002\tDefault Priority Task\tNULL\tlife\t0\n270008\tAI KOL code debug\t2026-03-22 16:00:00\twork\t1\n270007\tAI KOL風格功能開發\t2026-03-22 16:00:00\twork\t2\n150029\t8:00 和mina討論行程\t2026-03-22 16:00:00\tlife\t0\n150024\t15:00 數據課週會\t2026-03-23 16:00:00\twork\t2\n270009\tAI KOL P1變數定義\t2026-03-23 16:00:00\twork\t1\n480001\t寫日更筆記\t2026-03-23 16:00:00\tlife\t0\n270006\t分析悠遊可公關之商品\t2026-03-23 16:00:00\twork\t0\n300015\tWIN:監控驗證\t2026-03-24 16:00:00\tlife\t6\n270012\t19:00 Claude MAX\t2026-03-24 16:00:00\tlife\t3\n270013\t21:00 12週計劃(work)\t2026-03-24 16:00:00\tlife\t5\n210001\t10:00 自動化行銷例會\t2026-03-24 16:00:00\twork\t1\n210002\t14:00 讀書會討論\t2026-03-24 16:00:00\twork\t4\n300004\t冰箱報帳\t2026-03-24 16:00:00\tlife\t2\n150025\t15:00 EZcard 內部週會\t2026-03-25 16:00:00\twork\t0\n300009\t對花費\t2026-03-25 16:00:00\tlife\t3\n360001\t花博展覽-AI科技\t2026-03-25 16:00:00\twork\t4\n300002\t20:00 AI 自媒體\t2026-03-25 16:00:00\tlife\t2\n270018\t博覽會\t2026-03-25 16:00:00\tlife\t1\n420001\t修復AI KOL P2型別\t2026-03-26 16:00:00\twork\t2\n270005\t生活體驗社期初大會\t2026-03-26 16:00:00\twork\t1\n150026\t讀書會\t2026-03-26 16:00:00\twork\t0\n450002\tNCCU meeting\t2026-03-26 16:00:00\twork\t0\n450003\t物料追蹤\t2026-03-26 16:00:00\twork\t0\n270015\t20:00 claw\t2026-03-26 16:00:00\tlife\t2\n270017\t換人民幣(小寶)\t2026-03-27 16:00:00\tlife\t1\n270016\t9:00-17:00 AI課\t2026-03-27 16:00:00\tlife\t0\n510003\t17:00 悠遊雙周會\t2026-03-29 16:00:00\twork\t0\n510005\t研究meta串接\t2026-03-29 16:00:00\twork\t0\n510001\t13:30 自動化需求會議\t2026-03-30 16:00:00\twork\t0\n510002\t15:00 數據課週會\t2026-03-30 16:00:00\twork\t0\n510004\t申請生日假\t2026-03-31 16:00:00\twork\t0\n",
+  "stderr": "",
+  "execution_time_ms": 1655
+}

@@ -1,0 +1,50 @@
+{
+  "query": "SELECT id, userId, category, title, completed, dueDate FROM tasks WHERE category = 'life' LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT id, userId, category, title, completed, dueDate FROM tasks WHERE category = 'life' LIMIT 10;",
+  "rows": [
+    {
+      "id": "90007",
+      "userId": "1",
+      "category": "life",
+      "title": "Default Priority Task",
+      "completed": "0",
+      "dueDate": "NULL"
+    },
+    {
+      "id": "90013",
+      "userId": "1",
+      "category": "life",
+      "title": "Default Priority Task",
+      "completed": "0",
+      "dueDate": "NULL"
+    },
+    {
+      "id": "90018",
+      "userId": "1",
+      "category": "life",
+      "title": "Default Priority Task",
+      "completed": "0",
+      "dueDate": "NULL"
+    },
+    {
+      "id": "90022",
+      "userId": "1",
+      "category": "life",
+      "title": "Default Priority Task",
+      "completed": "0",
+      "dueDate": "NULL"
+    },
+    {
+      "id": "150002",
+      "userId": "1",
+      "category": "life",
+      "title": "Default Priority Task",
+      "completed": "0",
+      "dueDate": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tuserId\tcategory\ttitle\tcompleted\tdueDate\n90007\t1\tlife\tDefault Priority Task\t0\tNULL\n90013\t1\tlife\tDefault Priority Task\t0\tNULL\n90018\t1\tlife\tDefault Priority Task\t0\tNULL\n90022\t1\tlife\tDefault Priority Task\t0\tNULL\n150002\t1\tlife\tDefault Priority Task\t0\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 1534
+}

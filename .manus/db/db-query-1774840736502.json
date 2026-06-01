@@ -1,0 +1,94 @@
+{
+  "query": "SELECT id, title, dueDate, `order`, category FROM tasks WHERE userId = 1 AND dueDate >= '2026-03-30' AND dueDate < '2026-04-06' ORDER BY dueDate, `order`",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT id, title, dueDate, `order`, category FROM tasks WHERE userId = 1 AND dueDate >= '2026-03-30' AND dueDate < '2026-04-06' ORDER BY dueDate, `order`",
+  "rows": [
+    {
+      "id": "510020",
+      "title": "Task Tomorrow",
+      "dueDate": "2026-03-30 04:00:00",
+      "order": "0",
+      "category": "work"
+    },
+    {
+      "id": "510028",
+      "title": "Task Tomorrow",
+      "dueDate": "2026-03-30 04:00:00",
+      "order": "0",
+      "category": "work"
+    },
+    {
+      "id": "510001",
+      "title": "13:30 自動化需求會議",
+      "dueDate": "2026-03-30 16:00:00",
+      "order": "0",
+      "category": "work"
+    },
+    {
+      "id": "510002",
+      "title": "15:00 數據課週會",
+      "dueDate": "2026-03-30 16:00:00",
+      "order": "0",
+      "category": "work"
+    },
+    {
+      "id": "510006",
+      "title": "Task for 03/30",
+      "dueDate": "2026-03-30 16:00:00",
+      "order": "0",
+      "category": "work"
+    },
+    {
+      "id": "510007",
+      "title": "Task 2 for 03/30",
+      "dueDate": "2026-03-30 16:00:00",
+      "order": "1",
+      "category": "work"
+    },
+    {
+      "id": "510008",
+      "title": "Task 3 for 03/30",
+      "dueDate": "2026-03-30 16:00:00",
+      "order": "2",
+      "category": "work"
+    },
+    {
+      "id": "510004",
+      "title": "申請生日假",
+      "dueDate": "2026-03-31 16:00:00",
+      "order": "0",
+      "category": "work"
+    },
+    {
+      "id": "510009",
+      "title": "Task for 03/31",
+      "dueDate": "2026-03-31 16:00:00",
+      "order": "0",
+      "category": "work"
+    },
+    {
+      "id": "510010",
+      "title": "Task 2 for 03/31",
+      "dueDate": "2026-03-31 16:00:00",
+      "order": "1",
+      "category": "work"
+    },
+    {
+      "id": "510011",
+      "title": "Task for 04/01",
+      "dueDate": "2026-04-01 16:00:00",
+      "order": "0",
+      "category": "work"
+    },
+    {
+      "id": "510012",
+      "title": "Task 2 for 04/01",
+      "dueDate": "2026-04-01 16:00:00",
+      "order": "1",
+      "category": "work"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tdueDate\torder\tcategory\n510020\tTask Tomorrow\t2026-03-30 04:00:00\t0\twork\n510028\tTask Tomorrow\t2026-03-30 04:00:00\t0\twork\n510001\t13:30 自動化需求會議\t2026-03-30 16:00:00\t0\twork\n510002\t15:00 數據課週會\t2026-03-30 16:00:00\t0\twork\n510006\tTask for 03/30\t2026-03-30 16:00:00\t0\twork\n510007\tTask 2 for 03/30\t2026-03-30 16:00:00\t1\twork\n510008\tTask 3 for 03/30\t2026-03-30 16:00:00\t2\twork\n510004\t申請生日假\t2026-03-31 16:00:00\t0\twork\n510009\tTask for 03/31\t2026-03-31 16:00:00\t0\twork\n510010\tTask 2 for 03/31\t2026-03-31 16:00:00\t1\twork\n510011\tTask for 04/01\t2026-04-01 16:00:00\t0\twork\n510012\tTask 2 for 04/01\t2026-04-01 16:00:00\t1\twork\n",
+  "stderr": "",
+  "execution_time_ms": 1589
+}

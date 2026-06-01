@@ -1,0 +1,1 @@
+ALTER TABLE `annual_goals` ADD `quarter` int NOT NULL;

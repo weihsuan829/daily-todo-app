@@ -1,0 +1,16 @@
+{
+  "query": "\n-- Find all dates with duplicate order values\nSELECT \n  DATE(dueDate) as due_date,\n  `order`,\n  COUNT(*) as count,\n  GROUP_CONCAT(id) as task_ids\nFROM tasks \nWHERE category = 'work' \n  AND dueDate IS NOT NULL\nGROUP BY DATE(dueDate), `order`\nHAVING COUNT(*) > 1\nORDER BY due_date, `order`;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute \n-- Find all dates with duplicate order values\nSELECT \n  DATE(dueDate) as due_date,\n  `order`,\n  COUNT(*) as count,\n  GROUP_CONCAT(id) as task_ids\nFROM tasks \nWHERE category = 'work' \n  AND dueDate IS NOT NULL\nGROUP BY DATE(dueDate), `order`\nHAVING COUNT(*) > 1\nORDER BY due_date, `order`;\n",
+  "rows": [
+    {
+      "due_date": "2026-03-26",
+      "order": "0",
+      "count": "2",
+      "task_ids": "270005,420001"
+    }
+  ],
+  "messages": [],
+  "stdout": "due_date\torder\tcount\ttask_ids\n2026-03-26\t0\t2\t270005,420001\n",
+  "stderr": "",
+  "execution_time_ms": 1600
+}

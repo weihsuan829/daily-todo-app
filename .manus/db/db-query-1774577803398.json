@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Check Friday (03/27), Saturday (03/28), Sunday (03/29) tasks\nSELECT \n  id, \n  title, \n  category, \n  DATE(dueDate) as due_date,\n  `order`, \n  completed \nFROM tasks \nWHERE category = 'work' \n  AND DATE(dueDate) IN ('2026-03-27', '2026-03-28', '2026-03-29')\nORDER BY DATE(dueDate), `order`, id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute \n-- Check Friday (03/27), Saturday (03/28), Sunday (03/29) tasks\nSELECT \n  id, \n  title, \n  category, \n  DATE(dueDate) as due_date,\n  `order`, \n  completed \nFROM tasks \nWHERE category = 'work' \n  AND DATE(dueDate) IN ('2026-03-27', '2026-03-28', '2026-03-29')\nORDER BY DATE(dueDate), `order`, id;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1589
+}

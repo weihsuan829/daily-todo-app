@@ -1,0 +1,35 @@
+{
+  "query": "SELECT id, title, category FROM tasks LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT id, title, category FROM tasks LIMIT 20;",
+  "rows": [
+    {
+      "id": "60026",
+      "title": "測試",
+      "category": "work"
+    },
+    {
+      "id": "90001",
+      "title": "Test Task",
+      "category": "work"
+    },
+    {
+      "id": "90002",
+      "title": "Default Priority Task",
+      "category": "life"
+    },
+    {
+      "id": "90003",
+      "title": "Task to Update",
+      "category": "work"
+    },
+    {
+      "id": "90004",
+      "title": "Task to Delete",
+      "category": "work"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tcategory\n60026\t測試\twork\n90001\tTest Task\twork\n90002\tDefault Priority Task\tlife\n90003\tTask to Update\twork\n90004\tTask to Delete\twork\n",
+  "stderr": "",
+  "execution_time_ms": 1634
+}

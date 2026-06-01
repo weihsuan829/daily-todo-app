@@ -1,0 +1,17 @@
+{
+  "query": "SELECT id, title, dueDate, `order`, category FROM tasks WHERE id = 510005",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT id, title, dueDate, `order`, category FROM tasks WHERE id = 510005",
+  "rows": [
+    {
+      "id": "510005",
+      "title": "研究meta串接",
+      "dueDate": "2026-03-29 16:00:00",
+      "order": "0",
+      "category": "work"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tdueDate\torder\tcategory\n510005\t研究meta串接\t2026-03-29 16:00:00\t0\twork\n",
+  "stderr": "",
+  "execution_time_ms": 1584
+}

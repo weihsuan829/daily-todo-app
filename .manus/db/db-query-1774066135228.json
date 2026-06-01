@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE `tasks` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`userId` int NOT NULL,\n\t`category` enum('work','life') NOT NULL,\n\t`title` varchar(255) NOT NULL,\n\t`description` text,\n\t`priority` enum('low','medium','high') NOT NULL DEFAULT 'medium',\n\t`completed` boolean NOT NULL DEFAULT false,\n\t`completedAt` timestamp,\n\t`dueDate` timestamp,\n\t`order` int NOT NULL DEFAULT 0,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `tasks_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute CREATE TABLE `tasks` (\n\t`id` int AUTO_INCREMENT NOT NULL,\n\t`userId` int NOT NULL,\n\t`category` enum('work','life') NOT NULL,\n\t`title` varchar(255) NOT NULL,\n\t`description` text,\n\t`priority` enum('low','medium','high') NOT NULL DEFAULT 'medium',\n\t`completed` boolean NOT NULL DEFAULT false,\n\t`completedAt` timestamp,\n\t`dueDate` timestamp,\n\t`order` int NOT NULL DEFAULT 0,\n\t`createdAt` timestamp NOT NULL DEFAULT (now()),\n\t`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,\n\tCONSTRAINT `tasks_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1682
+}

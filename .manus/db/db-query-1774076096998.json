@@ -1,0 +1,130 @@
+{
+  "query": "SELECT id, title, description, category FROM tasks LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT id, title, description, category FROM tasks LIMIT 20;",
+  "rows": [
+    {
+      "id": "2",
+      "title": "Default Priority Task",
+      "description": "NULL",
+      "category": "life"
+    },
+    {
+      "id": "3",
+      "title": "Task to Update",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "4",
+      "title": "Task to Delete",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "6",
+      "title": "Default Priority Task",
+      "description": "NULL",
+      "category": "life"
+    },
+    {
+      "id": "7",
+      "title": "Task to Update",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "8",
+      "title": "Task to Delete",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "10",
+      "title": "Default Priority Task",
+      "description": "NULL",
+      "category": "life"
+    },
+    {
+      "id": "11",
+      "title": "Task to Update",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "12",
+      "title": "Task to Delete",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "14",
+      "title": "Default Priority Task",
+      "description": "NULL",
+      "category": "life"
+    },
+    {
+      "id": "15",
+      "title": "Task to Update",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "16",
+      "title": "Task to Delete",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "30002",
+      "title": "Default Priority Task",
+      "description": "NULL",
+      "category": "life"
+    },
+    {
+      "id": "30003",
+      "title": "Task to Update",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "30004",
+      "title": "Task to Delete",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "30006",
+      "title": "Default Priority Task",
+      "description": "NULL",
+      "category": "life"
+    },
+    {
+      "id": "30007",
+      "title": "Task to Update",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "30008",
+      "title": "Task to Delete",
+      "description": "NULL",
+      "category": "work"
+    },
+    {
+      "id": "60002",
+      "title": "Default Priority Task",
+      "description": "NULL",
+      "category": "life"
+    },
+    {
+      "id": "60003",
+      "title": "Task to Update",
+      "description": "NULL",
+      "category": "work"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tdescription\tcategory\n2\tDefault Priority Task\tNULL\tlife\n3\tTask to Update\tNULL\twork\n4\tTask to Delete\tNULL\twork\n6\tDefault Priority Task\tNULL\tlife\n7\tTask to Update\tNULL\twork\n8\tTask to Delete\tNULL\twork\n10\tDefault Priority Task\tNULL\tlife\n11\tTask to Update\tNULL\twork\n12\tTask to Delete\tNULL\twork\n14\tDefault Priority Task\tNULL\tlife\n15\tTask to Update\tNULL\twork\n16\tTask to Delete\tNULL\twork\n30002\tDefault Priority Task\tNULL\tlife\n30003\tTask to Update\tNULL\twork\n30004\tTask to Delete\tNULL\twork\n30006\tDefault Priority Task\tNULL\tlife\n30007\tTask to Update\tNULL\twork\n30008\tTask to Delete\tNULL\twork\n60002\tDefault Priority Task\tNULL\tlife\n60003\tTask to Update\tNULL\twork\n",
+  "stderr": "",
+  "execution_time_ms": 1549
+}

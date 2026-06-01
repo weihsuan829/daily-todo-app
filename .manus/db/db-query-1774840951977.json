@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE tasks t1 SET t1.`order` = (SELECT COUNT(*) - 1 FROM tasks t2 WHERE t2.userId = t1.userId AND t2.category = t1.category AND DATE(t2.dueDate) = DATE(t1.dueDate) AND t2.id <= t1.id) WHERE t1.userId = 1 AND DATE(t1.dueDate) = '2026-03-30'",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute UPDATE tasks t1 SET t1.`order` = (SELECT COUNT(*) - 1 FROM tasks t2 WHERE t2.userId = t1.userId AND t2.category = t1.category AND DATE(t2.dueDate) = DATE(t1.dueDate) AND t2.id <= t1.id) WHERE t1.userId = 1 AND DATE(t1.dueDate) = '2026-03-30'",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1674
+}

@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, title, dueDate, `order` FROM tasks WHERE id IN (510028, 510020) ORDER BY id",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT id, title, dueDate, `order` FROM tasks WHERE id IN (510028, 510020) ORDER BY id",
+  "rows": [
+    {
+      "id": "510020",
+      "title": "Task Tomorrow",
+      "dueDate": "2026-03-30 04:00:00",
+      "order": "0"
+    },
+    {
+      "id": "510028",
+      "title": "Task Tomorrow",
+      "dueDate": "2026-03-30 04:00:00",
+      "order": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tdueDate\torder\n510020\tTask Tomorrow\t2026-03-30 04:00:00\t0\n510028\tTask Tomorrow\t2026-03-30 04:00:00\t0\n",
+  "stderr": "",
+  "execution_time_ms": 1501
+}

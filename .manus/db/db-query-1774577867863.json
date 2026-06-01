@@ -1,0 +1,34 @@
+{
+  "query": "\n-- Fix the duplicate order values on 2026-03-26\n-- Update the second task with order 1 to order 2\nUPDATE tasks \nSET `order` = 2 \nWHERE id = 420001 AND category = 'work';\n\n-- Verify the fix\nSELECT \n  id, \n  title, \n  category, \n  dueDate,\n  `order`, \n  completed \nFROM tasks \nWHERE category = 'work' \n  AND DATE(dueDate) = '2026-03-26'\nORDER BY `order`, id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute \n-- Fix the duplicate order values on 2026-03-26\n-- Update the second task with order 1 to order 2\nUPDATE tasks \nSET `order` = 2 \nWHERE id = 420001 AND category = 'work';\n\n-- Verify the fix\nSELECT \n  id, \n  title, \n  category, \n  dueDate,\n  `order`, \n  completed \nFROM tasks \nWHERE category = 'work' \n  AND DATE(dueDate) = '2026-03-26'\nORDER BY `order`, id;\n",
+  "rows": [
+    {
+      "id": "270005",
+      "title": "生活體驗社期初大會",
+      "category": "work",
+      "dueDate": "2026-03-26 16:00:00",
+      "order": "0",
+      "completed": "0"
+    },
+    {
+      "id": "150026",
+      "title": "讀書會",
+      "category": "work",
+      "dueDate": "2026-03-26 16:00:00",
+      "order": "1",
+      "completed": "0"
+    },
+    {
+      "id": "420001",
+      "title": "修復AI KOL P2型別",
+      "category": "work",
+      "dueDate": "2026-03-26 16:00:00",
+      "order": "2",
+      "completed": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttitle\tcategory\tdueDate\torder\tcompleted\n270005\t生活體驗社期初大會\twork\t2026-03-26 16:00:00\t0\t0\n150026\t讀書會\twork\t2026-03-26 16:00:00\t1\t0\n420001\t修復AI KOL P2型別\twork\t2026-03-26 16:00:00\t2\t0\n",
+  "stderr": "",
+  "execution_time_ms": 1738
+}

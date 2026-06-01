@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `recurring_tasks` MODIFY COLUMN `category` enum('work','life','eisenhower') NOT NULL;\nALTER TABLE `tasks` MODIFY COLUMN `category` enum('work','life','eisenhower') NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute ALTER TABLE `recurring_tasks` MODIFY COLUMN `category` enum('work','life','eisenhower') NOT NULL;\nALTER TABLE `tasks` MODIFY COLUMN `category` enum('work','life','eisenhower') NOT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2169
+}

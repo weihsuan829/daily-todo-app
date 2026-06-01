@@ -1,0 +1,13 @@
+{
+  "query": "SELECT DISTINCT userId FROM tasks LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3RJyLaWAA7jyddb.root --database YjJsNAoC28EMLhY4PMPhWA --execute SELECT DISTINCT userId FROM tasks LIMIT 1;",
+  "rows": [
+    {
+      "userId": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "userId\n1\n",
+  "stderr": "",
+  "execution_time_ms": 1633
+}
