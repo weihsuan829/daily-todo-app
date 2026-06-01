@@ -39,10 +39,14 @@ export function getSessionCookieOptions(
   //       ? hostname
   //       : undefined;
 
+  const secure = isSecureRequest(req);
   return {
     httpOnly: true,
     path: "/",
-    sameSite: "none",
-    secure: isSecureRequest(req),
+    // Browsers reject `SameSite=None` cookies that aren't `Secure`. On plain
+    // http (local dev) fall back to `lax`, which is valid for our same-origin
+    // app. In production (https) keep `none` for cross-site embedding.
+    sameSite: secure ? "none" : "lax",
+    secure,
   };
 }
