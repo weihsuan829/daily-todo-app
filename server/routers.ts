@@ -28,7 +28,7 @@ export const appRouter = router({
     
     create: protectedProcedure
       .input(z.object({
-        category: z.enum(["work", "life", "eisenhower"]),
+        category: z.enum(["work", "life", "eisenhower"]).nullable().optional(),
         title: z.string().min(1).max(255),
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high"]).default("medium"),
@@ -62,7 +62,7 @@ export const appRouter = router({
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high"]).optional(),
         completed: z.boolean().optional(),
-        dueDate: z.date().optional(),
+        dueDate: z.date().nullable().optional(),
         order: z.number().optional(),
         projectId: z.number().nullable().optional(),
         status: z.enum(["todo", "in_progress", "done"]).optional(),

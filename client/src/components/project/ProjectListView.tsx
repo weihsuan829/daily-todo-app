@@ -426,7 +426,7 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
       title,
       status: sectionStatus,
       projectId,
-      category: "work",
+      category: null,
     });
   };
 
