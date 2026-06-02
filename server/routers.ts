@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, listTasksByProject, reorderProjectTasks } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks } from "./db";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -37,6 +37,7 @@ export const appRouter = router({
         projectId: z.number().optional(),
         status: z.enum(["todo", "in_progress", "done"]).optional(),
         startDate: z.date().optional(),
+        parentTaskId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const result = await createTask(ctx.user.id, {
@@ -50,6 +51,7 @@ export const appRouter = router({
           projectId: input.projectId,
           status: input.status,
           startDate: input.startDate,
+          parentTaskId: input.parentTaskId,
         });
         return result;
       }),
@@ -108,6 +110,24 @@ export const appRouter = router({
     reorder: protectedProcedure
       .input(z.object({ projectId: z.number(), orderedIds: z.array(z.number()) }))
       .mutation(async ({ ctx, input }) => reorderProjectTasks(ctx.user.id, input.orderedIds)),
+
+    setTags: protectedProcedure.input(z.object({ id: z.number(), tagIds: z.array(z.number()) }))
+      .mutation(async ({ ctx, input }) => setTaskTags(ctx.user.id, input.id, input.tagIds)),
+    bulkUpdate: protectedProcedure.input(z.object({ ids: z.array(z.number()), status: z.enum(["todo","in_progress","done"]).optional(), priority: z.enum(["low","medium","high"]).optional() }))
+      .mutation(async ({ ctx, input }) => bulkUpdateTasks(ctx.user.id, input.ids, { status: input.status, priority: input.priority })),
+    bulkDelete: protectedProcedure.input(z.object({ ids: z.array(z.number()) }))
+      .mutation(async ({ ctx, input }) => bulkDeleteTasks(ctx.user.id, input.ids)),
+  }),
+
+  tags: router({
+    list: protectedProcedure.input(z.object({ projectId: z.number() }))
+      .query(async ({ ctx, input }) => listTags(ctx.user.id, input.projectId)),
+    create: protectedProcedure.input(z.object({ projectId: z.number(), name: z.string().min(1).max(50), color: z.string().max(20).optional() }))
+      .mutation(async ({ ctx, input }) => createTag(ctx.user.id, input.projectId, input.name, input.color)),
+    delete: protectedProcedure.input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => deleteTag(ctx.user.id, input.id)),
+    taskMap: protectedProcedure.input(z.object({ projectId: z.number() }))
+      .query(async ({ ctx, input }) => listTaskTags(ctx.user.id, input.projectId)),
   }),
 
   projects: router({
