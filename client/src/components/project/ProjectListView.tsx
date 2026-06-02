@@ -12,6 +12,7 @@ import TagChips, { type TagLike } from "./TagChips";
 import TagPicker from "./TagPicker";
 import { PriorityPicker } from "./PriorityPicker";
 import DatePicker from "./DatePicker";
+import { AssigneePicker } from "./AssigneePicker";
 import {
   DndContext,
   PointerSensor,
@@ -84,6 +85,7 @@ function InlineNewSubtaskRow({
         </div>
       </td>
       <td className="w-28" />
+      <td className="w-10" />
       <td className="w-36" />
     </tr>
   );
@@ -314,6 +316,16 @@ function SortableTaskRow({
           value={(task.priority as "low" | "medium" | "high" | "urgent") ?? null}
           onChange={(p) => onUpdate({ priority: p })}
         />
+      </td>
+
+      {/* assignee */}
+      <td className="px-2 py-2 w-10" onClick={(e) => e.stopPropagation()}>
+        {projectId != null && (
+          <AssigneePicker
+            projectId={projectId}
+            task={{ id: task.id, assigneeId: task.assigneeId ?? null, assigneePlaceholderId: task.assigneePlaceholderId ?? null }}
+          />
+        )}
       </td>
 
       {/* due date */}
