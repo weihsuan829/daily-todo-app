@@ -15,7 +15,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar as CalendarIcon, GitBranch, Plus } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, ChevronRight, GitBranch, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { STATUS_META, STATUS_ORDER, statusPillClass } from "@/lib/statusMeta";
 import type { TaskStatus } from "@/lib/statusMeta";
@@ -29,6 +29,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { DEFAULT_FILTER_STATE, visibleStatuses } from "@/lib/filterSort";
 
 // ── Date chip helper ────────────────────────────────────────────────────────
 
@@ -167,6 +168,8 @@ function SortableCard({
 
 // ── Column ─────────────────────────────────────────────────────────────────────
 
+const ARCHIVED_COLLAPSED_KEY = "kanbanArchivedCollapsed";
+
 function Column({
   status,
   tasks,
@@ -185,6 +188,22 @@ function Column({
     data: { type: "column", status },
   });
   const [newTitle, setNewTitle] = useState("");
+
+  // Collapsible state — only used for "archived" column, defaults to collapsed
+  const isArchived = status === "archived";
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (!isArchived) return false;
+    const stored = localStorage.getItem(ARCHIVED_COLLAPSED_KEY);
+    return stored === null ? true : stored === "true";
+  });
+
+  const toggleCollapsed = () => {
+    if (!isArchived) return;
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(ARCHIVED_COLLAPSED_KEY, String(next));
+  };
+
   const meta = STATUS_META[status];
   const StatusIcon = meta.icon;
   const pill = statusPillClass(status);
@@ -210,7 +229,15 @@ function Column({
       }`}
     >
       {/* Header */}
-      <div className="flex items-center gap-1.5 mb-3 px-1">
+      <div
+        className={`flex items-center gap-1.5 mb-3 px-1 ${isArchived ? "cursor-pointer select-none" : ""}`}
+        onClick={isArchived ? toggleCollapsed : undefined}
+      >
+        {isArchived && (
+          collapsed
+            ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        )}
         <span className={pill.className} style={pill.style}>
           <StatusIcon className="w-3 h-3" />
           {meta.label}
@@ -218,41 +245,45 @@ function Column({
         <span className="text-xs text-muted-foreground ml-auto">{tasks.length}</span>
       </div>
 
-      {/* Cards */}
-      <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 flex-1 overflow-y-auto min-h-[40px]">
-          {tasks.map((t) => (
-            <SortableCard
-              key={t.id}
-              task={t}
-              subtasks={subtasksByParent.get(t.id) ?? []}
-              projectId={projectId}
-              onPriorityChange={onPriorityChange}
-            />
-          ))}
-        </div>
-      </SortableContext>
+      {/* Cards — hidden when collapsed */}
+      {!collapsed && (
+        <>
+          <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2 flex-1 overflow-y-auto min-h-[40px]">
+              {tasks.map((t) => (
+                <SortableCard
+                  key={t.id}
+                  task={t}
+                  subtasks={subtasksByParent.get(t.id) ?? []}
+                  projectId={projectId}
+                  onPriorityChange={onPriorityChange}
+                />
+              ))}
+            </div>
+          </SortableContext>
 
-      {/* Inline add */}
-      <form
-        onSubmit={handleSubmit}
-        className="mt-2 flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-card border border-transparent hover:border-border transition-colors"
-      >
-        <Plus className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-        <input
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          placeholder="Add task…"
-          className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
-        />
-      </form>
+          {/* Inline add */}
+          <form
+            onSubmit={handleSubmit}
+            className="mt-2 flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-card border border-transparent hover:border-border transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <input
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder="Add task…"
+              className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
+            />
+          </form>
+        </>
+      )}
     </div>
   );
 }
 
 // ── Board ──────────────────────────────────────────────────────────────────────
 
-export default function ProjectKanbanView({ projectId, tasks }: ProjectViewProps) {
+export default function ProjectKanbanView({ projectId, tasks, filterState }: ProjectViewProps) {
   const utils = trpc.useUtils();
 
   const setStatus = trpc.tasks.setStatus.useMutation({
@@ -339,7 +370,7 @@ export default function ProjectKanbanView({ projectId, tasks }: ProjectViewProps
     <div className="h-full overflow-x-auto px-6 py-4 bg-background">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="flex gap-3 h-full items-start">
-          {STATUS_ORDER.map((status) => (
+          {visibleStatuses(filterState ?? DEFAULT_FILTER_STATE).map((status) => (
             <Column
               key={status}
               status={status}
