@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment } from "./db";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -41,6 +41,7 @@ export const appRouter = router({
         assigneeId: z.number().nullable().optional(),
         assigneePlaceholderId: z.number().nullable().optional(),
         recurrenceRule: z.string().nullable().optional(),
+        color: z.string().max(20).nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const result = await createTask(ctx.user.id, {
@@ -58,6 +59,7 @@ export const appRouter = router({
           assigneeId: input.assigneeId,
           assigneePlaceholderId: input.assigneePlaceholderId,
           recurrenceRule: input.recurrenceRule,
+          color: input.color,
         });
         return result;
       }),
@@ -78,6 +80,7 @@ export const appRouter = router({
         assigneeId: z.number().nullable().optional(),
         assigneePlaceholderId: z.number().nullable().optional(),
         recurrenceRule: z.string().nullable().optional(),
+        color: z.string().max(20).nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { id, ...updates } = input;
@@ -392,6 +395,22 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => createPlaceholder(ctx.user.id, input.projectId, input.name, input.color)),
     delete: protectedProcedure.input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => deletePlaceholder(ctx.user.id, input.id)),
+  }),
+
+  attachments: router({
+    list: protectedProcedure.input(z.object({ taskId: z.number() }))
+      .query(async ({ ctx, input }) => listAttachments(ctx.user.id, input.taskId)),
+    delete: protectedProcedure.input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => { await deleteAttachment(ctx.user.id, input.id); return { success: true }; }),
+  }),
+
+  comments: router({
+    list: protectedProcedure.input(z.object({ taskId: z.number() }))
+      .query(async ({ ctx, input }) => listComments(ctx.user.id, input.taskId)),
+    create: protectedProcedure.input(z.object({ taskId: z.number(), content: z.string().min(1).max(5000) }))
+      .mutation(async ({ ctx, input }) => createComment(ctx.user.id, input.taskId, input.content)),
+    delete: protectedProcedure.input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => deleteComment(ctx.user.id, input.id)),
   }),
 });
 
