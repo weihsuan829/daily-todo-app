@@ -186,6 +186,7 @@ function TaskBar({
   dragDelta,
   dragKind,
   isDragging,
+  onBarClick,
 }: {
   span: SpanTask;
   lane: number;
@@ -195,6 +196,7 @@ function TaskBar({
   dragDelta: number;
   dragKind: DragKind | null;
   isDragging: boolean;
+  onBarClick?: () => void;
 }) {
   // Apply optimistic delta
   let effectiveStart = span.start;
@@ -266,6 +268,12 @@ function TaskBar({
           if (target.dataset.edge) return;
           e.stopPropagation();
           onDragStart("move", e);
+        }}
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.dataset.edge) return;
+          if (isDragging) return;
+          onBarClick?.();
         }}
       >
         {/* Left resize handle */}
@@ -373,7 +381,7 @@ function DayCell({
 
 // ─── ProjectCalendarView ──────────────────────────────────────────────────────
 
-export default function ProjectCalendarView({ projectId, tasks }: ProjectViewProps) {
+export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: ProjectViewProps) {
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -383,6 +391,7 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
   const [cursor, setCursor] = useState(() => startOfMonth(today));
   const [dragState, setDragState] = useState<DragState | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const dragMovedRef = useRef(false);
 
   const utils = trpc.useUtils();
   const updateTask = trpc.tasks.update.useMutation({
@@ -448,6 +457,7 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
       if (!gridEl) return;
       const cellWidth = gridEl.clientWidth / 7;
 
+      dragMovedRef.current = false;
       setDragState({
         taskId: span.task.id,
         kind,
@@ -462,6 +472,7 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
         setDragState((prev) => {
           if (!prev) return null;
           const delta = Math.round((ev.clientX - prev.startX) / prev.cellWidth);
+          if (delta !== 0) dragMovedRef.current = true;
           return { ...prev, currentDelta: delta };
         });
       };
@@ -626,6 +637,12 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
                           dragDelta={isThisDragging ? (dragState?.currentDelta ?? 0) : 0}
                           dragKind={isThisDragging ? (dragState?.kind ?? null) : null}
                           isDragging={isThisDragging}
+                          onBarClick={() => {
+                            if (!dragMovedRef.current) {
+                              onOpenTask?.(entry.span.task.id);
+                            }
+                            dragMovedRef.current = false;
+                          }}
                         />
                       </div>
                     );

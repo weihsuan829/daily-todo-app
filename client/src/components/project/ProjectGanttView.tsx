@@ -156,7 +156,7 @@ function GanttBar({ task, windowStart, rowIndex, onDateChange }: BarProps) {
       }}
       className={`rounded-md border px-2 flex items-center text-xs cursor-pointer hover:ring-2 hover:ring-accent z-10 select-none relative ${isDone ? "opacity-60" : ""}`}
       title={`${task.title} (${fmtInputDate(effectiveStart)} → ${fmtInputDate(effectiveEnd)})`}
-      onClick={() => setEditing((v) => !v)}
+      onClick={(e) => { e.stopPropagation(); setEditing((v) => !v); }}
     >
       <span className={`truncate font-medium text-foreground flex-1 min-w-0 ${isDone ? "line-through" : ""}`}>
         {task.title}
@@ -177,7 +177,7 @@ function GanttBar({ task, windowStart, rowIndex, onDateChange }: BarProps) {
 }
 
 // ─── Main component ─────────────────────────────────────────────────────────
-export default function ProjectGanttView({ projectId, tasks }: ProjectViewProps) {
+export default function ProjectGanttView({ projectId, tasks, onOpenTask }: ProjectViewProps) {
   const utils = trpc.useUtils();
   const updateTask = trpc.tasks.update.useMutation({
     onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
@@ -349,7 +349,8 @@ export default function ProjectGanttView({ projectId, tasks }: ProjectViewProps)
                       right: 0,
                       height: ROW_HEIGHT,
                     }}
-                    className="flex items-center px-2 border-b border-border/30"
+                    className="flex items-center px-2 border-b border-border/30 cursor-pointer hover:bg-accent/30"
+                    onClick={() => onOpenTask?.(task.id)}
                   >
                     {/* Left label */}
                     <span className="text-xs text-muted-foreground/60 truncate max-w-[160px]">
@@ -372,7 +373,8 @@ export default function ProjectGanttView({ projectId, tasks }: ProjectViewProps)
                     right: 0,
                     height: ROW_HEIGHT,
                   }}
-                  className="border-b border-border/20"
+                  className="border-b border-border/20 cursor-pointer hover:bg-accent/10"
+                  onClick={() => onOpenTask?.(task.id)}
                 >
                   <GanttBar
                     task={task}

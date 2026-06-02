@@ -119,6 +119,8 @@ interface TaskRowProps {
   // Bulk selection (root tasks only)
   bulkChecked?: boolean;
   onBulkToggle?: () => void;
+  // Open task drawer
+  onOpenTask?: (taskId: number) => void;
 }
 
 function SortableTaskRow({
@@ -139,6 +141,7 @@ function SortableTaskRow({
   allTags = [],
   bulkChecked,
   onBulkToggle,
+  onOpenTask,
 }: TaskRowProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -205,7 +208,10 @@ function SortableTaskRow({
       </td>
 
       {/* title */}
-      <td className="px-3 py-2 text-foreground min-w-0">
+      <td
+        className="px-3 py-2 text-foreground min-w-0 cursor-pointer"
+        onClick={() => onOpenTask?.(task.id)}
+      >
         <div className={`flex flex-col gap-0.5 ${isSubtask ? "pl-6" : ""}`}>
           <div className="flex items-center gap-1.5">
             {/* expand/collapse chevron for parent tasks with children */}
@@ -251,13 +257,16 @@ function SortableTaskRow({
               />
             ) : (
               <span
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenTask?.(task.id);
+                }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   setEditTitle(task.title);
                   setIsEditingTitle(true);
                 }}
-                className={`cursor-text select-none text-sm flex-1 ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}
+                className={`cursor-pointer select-none text-sm flex-1 ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}
                 title="Double-click to rename"
               >
                 {task.title}
@@ -385,6 +394,7 @@ function StatusSection({
   bulkSelected,
   onBulkToggle,
   dragDisabledBySort,
+  onOpenTask,
 }: {
   status: TaskStatus;
   tasks: Task[];
@@ -417,6 +427,7 @@ function StatusSection({
   bulkSelected: Set<number>;
   onBulkToggle: (id: number) => void;
   dragDisabledBySort: boolean;
+  onOpenTask?: (taskId: number) => void;
 }) {
   const [newTitle, setNewTitle] = useState("");
   const meta = STATUS_META[sectionStatus];
@@ -488,6 +499,7 @@ function StatusSection({
                         allTags={allTags}
                         bulkChecked={bulkSelected.has(t.id)}
                         onBulkToggle={() => onBulkToggle(t.id)}
+                        onOpenTask={onOpenTask}
                       />,
                       // Expanded subtask rows
                       ...(!isCollapsed
@@ -504,6 +516,7 @@ function StatusSection({
                               projectId={projectId}
                               onTagChanged={onTagChanged}
                               allTags={allTags}
+                              onOpenTask={onOpenTask}
                             />
                           ))
                         : []),
@@ -556,6 +569,7 @@ export default function ProjectListView({
   filterState: filterStateProp,
   tagsById: tagsByIdProp,
   tagIdsByTask: tagIdsByTaskProp,
+  onOpenTask,
 }: ProjectViewProps) {
   const utils = trpc.useUtils();
 
@@ -869,6 +883,7 @@ export default function ProjectListView({
               bulkSelected={bulkSelected}
               onBulkToggle={handleBulkToggle}
               dragDisabledBySort={dragDisabledBySort}
+              onOpenTask={onOpenTask}
             />
           ))}
         </div>

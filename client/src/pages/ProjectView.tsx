@@ -6,6 +6,7 @@ import ProjectListView from "@/components/project/ProjectListView";
 import ProjectKanbanView from "@/components/project/ProjectKanbanView";
 import ProjectCalendarView from "@/components/project/ProjectCalendarView";
 import ProjectGanttView from "@/components/project/ProjectGanttView";
+import TaskDetailDrawer from "@/components/project/TaskDetailDrawer";
 import { ProjectToolbar } from "@/components/project/ProjectToolbar";
 import type { TagLike } from "@/components/project/TagChips";
 import {
@@ -28,6 +29,7 @@ export default function ProjectView() {
   const projectId = Number(params?.id);
   const [view, setView] = useState<ViewMode>(() => (localStorage.getItem("projectView") as ViewMode) || "list");
   useEffect(() => { localStorage.setItem("projectView", view); }, [view]);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const { data: projects = [] } = trpc.projects.list.useQuery();
   const project = projects.find((p) => p.id === projectId);
   const { data: tasks = [], isLoading } = trpc.tasks.listByProject.useQuery({ projectId }, { enabled: Number.isFinite(projectId) });
@@ -159,7 +161,7 @@ export default function ProjectView() {
         />
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto relative">
         {isLoading ? <div className="p-8 text-muted-foreground text-sm">載入中…</div> : (
           <>
             {view === "list" && (
@@ -169,6 +171,7 @@ export default function ProjectView() {
                 filterState={filterState}
                 tagsById={tagsById}
                 tagIdsByTask={tagIdsByTask}
+                onOpenTask={setSelectedTaskId}
               />
             )}
             {view === "kanban" && (
@@ -178,6 +181,7 @@ export default function ProjectView() {
                 filterState={filterState}
                 tagsById={tagsById}
                 tagIdsByTask={tagIdsByTask}
+                onOpenTask={setSelectedTaskId}
               />
             )}
             {view === "calendar" && (
@@ -187,6 +191,7 @@ export default function ProjectView() {
                 filterState={filterState}
                 tagsById={tagsById}
                 tagIdsByTask={tagIdsByTask}
+                onOpenTask={setSelectedTaskId}
               />
             )}
             {view === "gantt" && (
@@ -196,10 +201,24 @@ export default function ProjectView() {
                 filterState={filterState}
                 tagsById={tagsById}
                 tagIdsByTask={tagIdsByTask}
+                onOpenTask={setSelectedTaskId}
               />
             )}
           </>
         )}
+        {selectedTaskId != null && (() => {
+          const t = tasks.find((x) => x.id === selectedTaskId);
+          return t ? (
+            <TaskDetailDrawer
+              task={t}
+              projectId={projectId}
+              allTasks={tasks}
+              tagsById={tagsById}
+              tagIdsByTask={tagIdsByTask}
+              onClose={() => setSelectedTaskId(null)}
+            />
+          ) : null;
+        })()}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -83,14 +83,20 @@ function SortableCard({
   subtasks,
   projectId,
   onPriorityChange,
+  onOpenTask,
 }: {
   task: Task;
   subtasks: Task[];
   projectId: number;
   onPriorityChange: (id: number, priority: "low" | "medium" | "high" | "urgent" | null) => void;
+  onOpenTask?: (taskId: number) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id, data: { task, type: "task" } });
+  const [didDrag, setDidDrag] = useState(false);
+  useEffect(() => {
+    if (isDragging) setDidDrag(true);
+  }, [isDragging]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -108,6 +114,10 @@ function SortableCard({
       {...attributes}
       {...listeners}
       className="bg-card border border-border rounded-lg p-3 shadow-sm cursor-grab active:cursor-grabbing select-none"
+      onClick={() => {
+        if (didDrag) { setDidDrag(false); return; }
+        onOpenTask?.(task.id);
+      }}
     >
       {/* Title */}
       <p className="text-sm font-medium text-foreground leading-snug mb-2">{task.title}</p>
@@ -176,12 +186,14 @@ function Column({
   subtasksByParent,
   projectId,
   onPriorityChange,
+  onOpenTask,
 }: {
   status: TaskStatus;
   tasks: Task[];
   subtasksByParent: Map<number, Task[]>;
   projectId: number;
   onPriorityChange: (id: number, priority: "low" | "medium" | "high" | "urgent" | null) => void;
+  onOpenTask?: (taskId: number) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `col-${status}`,
@@ -257,6 +269,7 @@ function Column({
                   subtasks={subtasksByParent.get(t.id) ?? []}
                   projectId={projectId}
                   onPriorityChange={onPriorityChange}
+                  onOpenTask={onOpenTask}
                 />
               ))}
             </div>
@@ -283,7 +296,7 @@ function Column({
 
 // ── Board ──────────────────────────────────────────────────────────────────────
 
-export default function ProjectKanbanView({ projectId, tasks, filterState }: ProjectViewProps) {
+export default function ProjectKanbanView({ projectId, tasks, filterState, onOpenTask }: ProjectViewProps) {
   const utils = trpc.useUtils();
 
   const setStatus = trpc.tasks.setStatus.useMutation({
@@ -380,6 +393,7 @@ export default function ProjectKanbanView({ projectId, tasks, filterState }: Pro
               subtasksByParent={subtasksByParent}
               projectId={projectId}
               onPriorityChange={handlePriorityChange}
+              onOpenTask={onOpenTask}
             />
           ))}
         </div>

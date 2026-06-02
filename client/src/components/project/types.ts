@@ -8,4 +8,5 @@ export interface ProjectViewProps {
   filterState?: FilterState;
   tagsById?: Record<number, TagLike>;
   tagIdsByTask?: Map<number, number[]>;
+  onOpenTask?: (taskId: number) => void;
 }
