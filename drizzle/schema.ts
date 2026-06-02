@@ -42,6 +42,7 @@ export const tasks = mysqlTable("tasks", {
   assigneeId: int("assigneeId"),
   assigneePlaceholderId: int("assigneePlaceholderId"),
   recurrenceRule: text("recurrenceRule"),
+  color: varchar("color", { length: 20 }),
   status: mysqlEnum("status", ["todo", "in_progress", "done", "archived"]).default("todo").notNull(),
   startDate: timestamp("startDate"),
   completed: boolean("completed").default(false).notNull(),
@@ -243,3 +244,25 @@ export const trackingRecords = mysqlTable("tracking_records", {
 
 export type TrackingRecord = typeof trackingRecords.$inferSelect;
 export type InsertTrackingRecord = typeof trackingRecords.$inferInsert;
+
+export const attachments = mysqlTable("attachments", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  fileUrl: varchar("fileUrl", { length: 500 }).notNull(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileSize: int("fileSize").default(0).notNull(),
+  uploadedBy: int("uploadedBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Attachment = typeof attachments.$inferSelect;
+export type InsertAttachment = typeof attachments.$inferInsert;
+
+export const comments = mysqlTable("comments", {
+  id: int("id").autoincrement().primaryKey(),
+  taskId: int("taskId").notNull(),
+  userId: int("userId").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Comment = typeof comments.$inferSelect;
+export type InsertComment = typeof comments.$inferInsert;
