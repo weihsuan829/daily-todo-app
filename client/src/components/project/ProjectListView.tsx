@@ -84,9 +84,10 @@ function InlineNewSubtaskRow({
           />
         </div>
       </td>
-      <td className="w-28" />
-      <td className="w-10" />
-      <td className="w-36" />
+      <td className="w-9" />
+      <td className="w-32" />
+      <td className="w-12" />
+      <td className="w-24" />
     </tr>
   );
 }
@@ -174,21 +175,6 @@ function SortableTaskRow({
       style={style}
       className="group border-t border-border hover:bg-accent/40"
     >
-      {/* bulk checkbox — root tasks only */}
-      {!isSubtask && onBulkToggle != null && (
-        <td className="w-6 px-1 pl-2" onClick={(e) => e.stopPropagation()}>
-          <input
-            type="checkbox"
-            checked={bulkChecked ?? false}
-            onChange={onBulkToggle}
-            className="rounded border-border accent-primary cursor-pointer"
-            title="Select task"
-          />
-        </td>
-      )}
-      {/* placeholder for subtasks so columns align */}
-      {isSubtask && onBulkToggle == null && <td className="w-6" />}
-
       {/* drag handle */}
       <td className="w-8 px-1" onClick={(e) => e.stopPropagation()}>
         {dragDisabled ? (
@@ -279,19 +265,6 @@ function SortableTaskRow({
                 {task.title}
               </span>
             )}
-            {/* "+ subtask" hover button — root tasks only */}
-            {!isSubtask && onAddSubtask && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddSubtask(task.id);
-                }}
-                className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0"
-                title="Add subtask"
-              >
-                <Plus className="w-3 h-3" />
-              </button>
-            )}
             {/* tag picker hover button */}
             {projectId != null && onTagChanged && (
               <TagPicker
@@ -310,16 +283,8 @@ function SortableTaskRow({
         </div>
       </td>
 
-      {/* priority */}
-      <td className="px-2 py-2 w-10" onClick={(e) => e.stopPropagation()}>
-        <PriorityPicker
-          value={(task.priority as "low" | "medium" | "high" | "urgent") ?? null}
-          onChange={(p) => onUpdate({ priority: p })}
-        />
-      </td>
-
       {/* assignee */}
-      <td className="px-2 py-2 w-10" onClick={(e) => e.stopPropagation()}>
+      <td className="px-2 py-2 w-9" onClick={(e) => e.stopPropagation()}>
         {projectId != null && (
           <AssigneePicker
             projectId={projectId}
@@ -328,8 +293,8 @@ function SortableTaskRow({
         )}
       </td>
 
-      {/* due date */}
-      <td className="px-3 py-2 w-36 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
+      {/* date */}
+      <td className="px-3 py-2 w-32 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
         {dateLocked ? (
           <DatePicker
             startDate={effDates.startDate}
@@ -350,6 +315,48 @@ function SortableTaskRow({
             }
           />
         )}
+      </td>
+
+      {/* priority */}
+      <td className="px-2 py-2 w-12" onClick={(e) => e.stopPropagation()}>
+        <PriorityPicker
+          value={(task.priority as "low" | "medium" | "high" | "urgent") ?? null}
+          onChange={(p) => onUpdate({ priority: p })}
+        />
+      </td>
+
+      {/* trailing hover-actions: bulk checkbox, + subtask (root only) */}
+      <td className="px-2 py-2 w-24 text-right" onClick={(e) => e.stopPropagation()}>
+        <div className="inline-flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
+          {/* bulk checkbox — root tasks only */}
+          {!isSubtask && onBulkToggle != null && (
+            <button
+              onClick={onBulkToggle}
+              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent"
+              title="Select task"
+            >
+              <input
+                type="checkbox"
+                checked={bulkChecked ?? false}
+                readOnly
+                className="w-3.5 h-3.5 align-middle pointer-events-none rounded border-border accent-primary cursor-pointer"
+              />
+            </button>
+          )}
+          {/* "+ subtask" button — root tasks only */}
+          {!isSubtask && onAddSubtask && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddSubtask(task.id);
+              }}
+              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0"
+              title="Add subtask"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   );
