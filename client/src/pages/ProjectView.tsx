@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { useRoute } from "wouter";
-import { BarChart3, Calendar as CalendarIcon, Columns3, List } from "lucide-react";
+import { useRoute, Link } from "wouter";
+import { ArrowLeft, BarChart3, Calendar as CalendarIcon, Columns3, List } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ProjectListView from "@/components/project/ProjectListView";
 import ProjectKanbanView from "@/components/project/ProjectKanbanView";
@@ -24,11 +24,26 @@ export default function ProjectView() {
   const project = projects.find((p) => p.id === projectId);
   const { data: tasks = [], isLoading } = trpc.tasks.listByProject.useQuery({ projectId }, { enabled: Number.isFinite(projectId) });
 
-  if (!project) return <div className="p-8 text-muted-foreground">找不到這個專案。</div>;
+  if (!project)
+    return (
+      <div className="p-8 text-muted-foreground">
+        <Link href="/" className="inline-flex items-center gap-1 text-sm hover:text-foreground mb-4">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Link>
+        <p>找不到這個專案。</p>
+      </div>
+    );
   return (
     <div className="h-full flex flex-col bg-background text-foreground">
       <header className="px-8 py-5 border-b border-border bg-card flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground rounded-md px-2 py-1 hover:bg-accent"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Link>
           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: project.color }} />
           <h1 className="text-xl font-semibold">{project.name}</h1>
         </div>

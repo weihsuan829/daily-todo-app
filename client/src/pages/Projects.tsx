@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "wouter";
+import { ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 
 export default function Projects() {
@@ -9,6 +10,9 @@ export default function Projects() {
   const [name, setName] = useState("");
   return (
     <div className="max-w-2xl mx-auto p-6 text-foreground">
+      <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
+        <ArrowLeft className="w-4 h-4" /> Back
+      </Link>
       <h1 className="text-2xl font-bold mb-4">Projects</h1>
       <form className="flex gap-2 mb-6" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { create.mutate({ name: name.trim() }); setName(""); } }}>
         <input className="flex-1 border border-border bg-input rounded px-3 py-2" placeholder="New project name" value={name} onChange={(e) => setName(e.target.value)} />
