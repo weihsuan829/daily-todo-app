@@ -724,7 +724,7 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
 
   // Status grouping — only root tasks go into sections (filtered)
   const tasksByStatus = useMemo(() => {
-    const map: Record<TaskStatus, Task[]> = { todo: [], in_progress: [], done: [] };
+    const map: Record<TaskStatus, Task[]> = { todo: [], in_progress: [], done: [], archived: [] };
     for (const t of filteredRootTasks) {
       const s = t.status as TaskStatus;
       if (s in map) map[s].push(t);

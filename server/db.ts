@@ -1028,7 +1028,7 @@ export async function listTaskTags(userId: number, projectId: number) {
 }
 
 // ---- Bulk Operations ----
-export async function bulkUpdateTasks(userId: number, ids: number[], changes: { status?: "todo" | "in_progress" | "done"; priority?: "low" | "medium" | "high" }) {
+export async function bulkUpdateTasks(userId: number, ids: number[], changes: { status?: "todo" | "in_progress" | "done" | "archived"; priority?: "low" | "medium" | "high" }) {
   const db = await getDb(); if (!db) return null;
   const synced = applyStatusCompletionSync(changes);
   for (const id of ids) {

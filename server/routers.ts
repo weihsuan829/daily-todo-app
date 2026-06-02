@@ -35,7 +35,7 @@ export const appRouter = router({
         dueDate: z.date().optional(),
         quadrant: z.enum(["urgent-important", "not-urgent-important", "urgent-not-important", "not-urgent-not-important"]).optional(),
         projectId: z.number().optional(),
-        status: z.enum(["todo", "in_progress", "done"]).optional(),
+        status: z.enum(["todo", "in_progress", "done", "archived"]).optional(),
         startDate: z.date().optional(),
         parentTaskId: z.number().optional(),
         assigneeId: z.number().nullable().optional(),
@@ -73,7 +73,7 @@ export const appRouter = router({
         dueDate: z.date().nullable().optional(),
         order: z.number().optional(),
         projectId: z.number().nullable().optional(),
-        status: z.enum(["todo", "in_progress", "done"]).optional(),
+        status: z.enum(["todo", "in_progress", "done", "archived"]).optional(),
         startDate: z.date().nullable().optional(),
         assigneeId: z.number().nullable().optional(),
         assigneePlaceholderId: z.number().nullable().optional(),
@@ -115,7 +115,7 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => listTasksByProject(ctx.user.id, input.projectId)),
 
     setStatus: protectedProcedure
-      .input(z.object({ id: z.number(), status: z.enum(["todo", "in_progress", "done"]) }))
+      .input(z.object({ id: z.number(), status: z.enum(["todo", "in_progress", "done", "archived"]) }))
       .mutation(async ({ ctx, input }) => updateTask(input.id, ctx.user.id, { status: input.status })),
 
     reorder: protectedProcedure
@@ -124,7 +124,7 @@ export const appRouter = router({
 
     setTags: protectedProcedure.input(z.object({ id: z.number(), tagIds: z.array(z.number()) }))
       .mutation(async ({ ctx, input }) => setTaskTags(ctx.user.id, input.id, input.tagIds)),
-    bulkUpdate: protectedProcedure.input(z.object({ ids: z.array(z.number()), status: z.enum(["todo","in_progress","done"]).optional(), priority: z.enum(["low","medium","high","urgent"]).optional() }))
+    bulkUpdate: protectedProcedure.input(z.object({ ids: z.array(z.number()), status: z.enum(["todo","in_progress","done","archived"]).optional(), priority: z.enum(["low","medium","high","urgent"]).optional() }))
       .mutation(async ({ ctx, input }) => bulkUpdateTasks(ctx.user.id, input.ids, { status: input.status, priority: input.priority as "low" | "medium" | "high" | undefined })),
     bulkDelete: protectedProcedure.input(z.object({ ids: z.array(z.number()) }))
       .mutation(async ({ ctx, input }) => bulkDeleteTasks(ctx.user.id, input.ids)),

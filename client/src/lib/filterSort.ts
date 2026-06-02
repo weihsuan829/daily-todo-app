@@ -1,4 +1,5 @@
 import type { Task } from "../../../drizzle/schema";
+import type { TaskStatus } from "@/lib/statusMeta";
 
 export type SortField = "manual" | "priority" | "due_date" | "created_at" | "title";
 export type SortDir = "asc" | "desc";
@@ -31,6 +32,8 @@ export const DEFAULT_FILTER_STATE: FilterState = {
   closed: true,
   assigneeQuick: "all",
 };
+
+const CLOSED_STATUSES: TaskStatus[] = ["done", "archived"];
 
 const PRIORITY_RANK: Record<string, number> = {
   urgent: 4,
@@ -108,7 +111,7 @@ export function passesFilters(
   state: FilterState,
   ctx: FilterSortCtx
 ): boolean {
-  if (!state.closed && task.status === "done") return false;
+  if (!state.closed && CLOSED_STATUSES.includes(task.status as TaskStatus)) return false;
   if (!matchesAssigneeQuick(task, state.assigneeQuick, ctx.currentUserId)) return false;
   for (const cond of state.filters) {
     if (!matchesCondition(task, cond, ctx)) return false;
@@ -156,7 +159,7 @@ export function applyFilterSort(
 }
 
 /** Returns which statuses should be visible */
-export function visibleStatuses(state: FilterState): ("todo" | "in_progress" | "done")[] {
-  const all: ("todo" | "in_progress" | "done")[] = ["todo", "in_progress", "done"];
-  return state.closed ? all : all.filter((s) => s !== "done");
+export function visibleStatuses(state: FilterState): TaskStatus[] {
+  const all: TaskStatus[] = ["todo", "in_progress", "done", "archived"];
+  return state.closed ? all : all.filter((s) => !CLOSED_STATUSES.includes(s));
 }

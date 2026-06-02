@@ -1,6 +1,6 @@
-import { Check, Circle, CircleDashed, type LucideIcon } from "lucide-react";
+import { Archive, Check, Circle, CircleDashed, type LucideIcon } from "lucide-react";
 
-export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskStatus = "todo" | "in_progress" | "done" | "archived";
 
 export interface StatusMeta { label: string; icon: LucideIcon; color: string; filled: boolean; }
 
@@ -8,8 +8,9 @@ export const STATUS_META: Record<TaskStatus, StatusMeta> = {
   todo: { label: "TO DO", icon: CircleDashed, color: "#94a3b8", filled: false },
   in_progress: { label: "IN PROGRESS", icon: Circle, color: "#9ca3af", filled: true },
   done: { label: "DONE", icon: Check, color: "#10b981", filled: true },
+  archived: { label: "ARCHIVED", icon: Archive, color: "#94a3b8", filled: false },
 };
-export const STATUS_ORDER: TaskStatus[] = ["todo", "in_progress", "done"];
+export const STATUS_ORDER: TaskStatus[] = ["todo", "in_progress", "done", "archived"];
 
 export function statusPillClass(status: TaskStatus): { className: string; style: React.CSSProperties } {
   const meta = STATUS_META[status];
