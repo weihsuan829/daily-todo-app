@@ -1,6 +1,6 @@
 import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers } from "../drizzle/schema";
+import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
 
@@ -1077,4 +1077,54 @@ export async function createPlaceholder(userId: number, projectId: number, name:
 export async function deletePlaceholder(userId: number, id: number) {
   const db = await getDb(); if (!db) return null;
   return db.delete(placeholderMembers).where(eq(placeholderMembers.id, id));
+}
+
+// helper: does this user own this task?
+async function userOwnsTask(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, userId: number, taskId: number) {
+  const rows = await db.select({ id: tasks.id }).from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId))).limit(1);
+  return rows.length > 0;
+}
+
+// ---- Attachments ----
+export async function listAttachments(userId: number, taskId: number) {
+  const db = await getDb(); if (!db) return [];
+  if (!(await userOwnsTask(db, userId, taskId))) return [];
+  return db.select().from(attachments).where(eq(attachments.taskId, taskId)).orderBy(asc(attachments.createdAt));
+}
+export async function createAttachment(userId: number, data: { taskId: number; fileUrl: string; fileName: string; fileSize: number }) {
+  const db = await getDb(); if (!db) return null;
+  if (!(await userOwnsTask(db, userId, data.taskId))) return null;
+  await db.insert(attachments).values({ ...data, uploadedBy: userId });
+  const rows = await db.select().from(attachments).where(eq(attachments.taskId, data.taskId)).orderBy(desc(attachments.id)).limit(1);
+  return rows[0] ?? null;
+}
+export async function deleteAttachment(userId: number, id: number) {
+  const db = await getDb(); if (!db) return null;
+  const rows = await db.select().from(attachments).where(eq(attachments.id, id)).limit(1);
+  const att = rows[0]; if (!att) return null;
+  if (!(await userOwnsTask(db, userId, att.taskId))) return null;
+  await db.delete(attachments).where(eq(attachments.id, id));
+  return att; // caller unlinks the file
+}
+
+// ---- Comments ----
+export async function listComments(userId: number, taskId: number) {
+  const db = await getDb(); if (!db) return [];
+  if (!(await userOwnsTask(db, userId, taskId))) return [];
+  return db.select({
+    id: comments.id, taskId: comments.taskId, userId: comments.userId,
+    content: comments.content, createdAt: comments.createdAt,
+    authorName: users.name,
+  }).from(comments).innerJoin(users, eq(comments.userId, users.id))
+    .where(eq(comments.taskId, taskId)).orderBy(asc(comments.createdAt));
+}
+export async function createComment(userId: number, taskId: number, content: string) {
+  const db = await getDb(); if (!db) return null;
+  if (!(await userOwnsTask(db, userId, taskId))) return null;
+  return db.insert(comments).values({ taskId, userId, content });
+}
+export async function deleteComment(userId: number, id: number) {
+  const db = await getDb(); if (!db) return null;
+  return db.delete(comments).where(and(eq(comments.id, id), eq(comments.userId, userId)));
 }
