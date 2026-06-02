@@ -35,10 +35,13 @@ export const tasks = mysqlTable("tasks", {
   category: mysqlEnum("category", ["work", "life", "eisenhower"]),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
-  priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
   quadrant: mysqlEnum("quadrant", ["urgent-important", "not-urgent-important", "urgent-not-important", "not-urgent-not-important"]),
   projectId: int("projectId"),
   parentTaskId: int("parentTaskId"),
+  assigneeId: int("assigneeId"),
+  assigneePlaceholderId: int("assigneePlaceholderId"),
+  recurrenceRule: text("recurrenceRule"),
   status: mysqlEnum("status", ["todo", "in_progress", "done"]).default("todo").notNull(),
   startDate: timestamp("startDate"),
   completed: boolean("completed").default(false).notNull(),
@@ -101,6 +104,16 @@ export const taskTags = mysqlTable("task_tags", {
   tagId: int("tagId").notNull(),
 });
 export type TaskTag = typeof taskTags.$inferSelect;
+
+export const placeholderMembers = mysqlTable("placeholder_members", {
+  id: int("id").autoincrement().primaryKey(),
+  workspaceId: int("workspaceId").notNull(),
+  name: varchar("name", { length: 64 }).notNull(),
+  color: varchar("color", { length: 20 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type PlaceholderMember = typeof placeholderMembers.$inferSelect;
+export type InsertPlaceholderMember = typeof placeholderMembers.$inferInsert;
 
 /**
  * Deleted recurring task instances table
