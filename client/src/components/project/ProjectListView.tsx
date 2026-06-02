@@ -11,6 +11,7 @@ import {
 import TagChips, { type TagLike } from "./TagChips";
 import TagPicker from "./TagPicker";
 import { PriorityPicker } from "./PriorityPicker";
+import DatePicker from "./DatePicker";
 import {
   DndContext,
   PointerSensor,
@@ -27,7 +28,6 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { format } from "date-fns";
 import { trpc } from "@/lib/trpc";
 import { STATUS_META, STATUS_ORDER, statusPillClass, type TaskStatus } from "@/lib/statusMeta";
 import { getEffectiveDates } from "@/lib/taskHierarchy";
@@ -40,23 +40,6 @@ import {
   type FilterState,
 } from "@/lib/filterSort";
 import { ProjectToolbar } from "./ProjectToolbar";
-
-// ─── helpers ────────────────────────────────────────────────────────────────
-
-function toDateInputValue(d: Date | null | undefined): string {
-  if (!d) return "";
-  try {
-    return format(d, "yyyy-MM-dd");
-  } catch {
-    return "";
-  }
-}
-
-function fromDateInputValue(s: string): Date | undefined {
-  if (!s) return undefined;
-  const [y, m, day] = s.split("-").map(Number);
-  return new Date(y, m - 1, day);
-}
 
 // ─── InlineNewSubtaskRow ──────────────────────────────────────────────────────
 
@@ -116,6 +99,7 @@ interface TaskRowProps {
     priority?: "low" | "medium" | "high" | "urgent" | null;
     dueDate?: Date | null;
     startDate?: Date | null;
+    recurrenceRule?: string | null;
   }) => void;
   dragDisabled?: boolean;
   // Subtask-specific
@@ -335,27 +319,23 @@ function SortableTaskRow({
       {/* due date */}
       <td className="px-3 py-2 w-36 text-xs text-muted-foreground" onClick={(e) => e.stopPropagation()}>
         {dateLocked ? (
-          <span
-            className="inline-flex items-center gap-1 text-muted-foreground px-1.5 py-1 text-xs"
-            title="Date aggregated from subtasks — edit subtasks to change"
-          >
-            {effDates.dueDate ? (
-              <span>{toDateInputValue(effDates.dueDate)}</span>
-            ) : (
-              <span>—</span>
-            )}
-          </span>
+          <DatePicker
+            startDate={effDates.startDate}
+            dueDate={effDates.dueDate}
+            recurrenceRule={task.recurrenceRule ?? null}
+            onChange={() => {
+              /* locked — aggregated from subtasks */
+            }}
+            disabled
+          />
         ) : (
-          <input
-            type="date"
-            value={toDateInputValue(task.dueDate)}
-            onChange={(e) =>
-              onUpdate({
-                dueDate: e.target.value ? fromDateInputValue(e.target.value) : null,
-              })
+          <DatePicker
+            startDate={task.startDate ?? null}
+            dueDate={task.dueDate ?? null}
+            recurrenceRule={task.recurrenceRule ?? null}
+            onChange={({ startDate, dueDate, recurrenceRule }) =>
+              onUpdate({ startDate, dueDate, recurrenceRule })
             }
-            className="text-xs border border-border rounded px-1.5 py-0.5 bg-background text-foreground focus:ring-1 focus:ring-ring outline-none w-full"
-            title="Due date"
           />
         )}
       </td>
@@ -401,6 +381,7 @@ function StatusSection({
       priority?: "low" | "medium" | "high" | "urgent" | null;
       dueDate?: Date | null;
       startDate?: Date | null;
+      recurrenceRule?: string | null;
     }
   ) => void;
   onCreate: (title: string) => void;
@@ -848,6 +829,7 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
       priority?: "low" | "medium" | "high" | "urgent" | null;
       dueDate?: Date | null;
       startDate?: Date | null;
+      recurrenceRule?: string | null;
     }
   ) => {
     update.mutate({
@@ -858,6 +840,9 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
         : {}),
       ...(changes.dueDate !== undefined ? { dueDate: changes.dueDate ?? undefined } : {}),
       ...(changes.startDate !== undefined ? { startDate: changes.startDate } : {}),
+      ...(changes.recurrenceRule !== undefined
+        ? { recurrenceRule: changes.recurrenceRule }
+        : {}),
     });
   };
 
