@@ -1,6 +1,6 @@
 import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag } from "../drizzle/schema";
+import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
 
@@ -1043,4 +1043,38 @@ export async function bulkDeleteTasks(userId: number, ids: number[]) {
     await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
   }
   return { success: true };
+}
+
+// Workspace members (Phase: owner only = "Me"). Resolves the project's workspace owner to a user.
+export async function listWorkspaceMembers(userId: number, projectId: number) {
+  const db = await getDb(); if (!db) return [];
+  if (!(await userOwnsProject(db, userId, projectId))) return [];
+  const rows = await db.select({ id: users.id, name: users.name, email: users.email })
+    .from(projects)
+    .innerJoin(workspaces, eq(projects.workspaceId, workspaces.id))
+    .innerJoin(users, eq(workspaces.ownerId, users.id))
+    .where(eq(projects.id, projectId)).limit(1);
+  return rows; // [{ id, name, email }]
+}
+
+// Placeholder ("guest") members, scoped to the project's workspace.
+async function workspaceIdOfProject(db: NonNullable<Awaited<ReturnType<typeof getDb>>>, projectId: number): Promise<number | null> {
+  const rows = await db.select({ wsId: projects.workspaceId }).from(projects).where(eq(projects.id, projectId)).limit(1);
+  return rows.length ? rows[0].wsId : null;
+}
+export async function listPlaceholders(userId: number, projectId: number) {
+  const db = await getDb(); if (!db) return [];
+  if (!(await userOwnsProject(db, userId, projectId))) return [];
+  const wsId = await workspaceIdOfProject(db, projectId); if (!wsId) return [];
+  return db.select().from(placeholderMembers).where(eq(placeholderMembers.workspaceId, wsId));
+}
+export async function createPlaceholder(userId: number, projectId: number, name: string, color?: string) {
+  const db = await getDb(); if (!db) return null;
+  if (!(await userOwnsProject(db, userId, projectId))) return null;
+  const wsId = await workspaceIdOfProject(db, projectId); if (!wsId) return null;
+  return db.insert(placeholderMembers).values({ workspaceId: wsId, name, color });
+}
+export async function deletePlaceholder(userId: number, id: number) {
+  const db = await getDb(); if (!db) return null;
+  return db.delete(placeholderMembers).where(eq(placeholderMembers.id, id));
 }
