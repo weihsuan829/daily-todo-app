@@ -9,24 +9,31 @@ export interface SortState {
 }
 
 export type FilterCondition =
-  | { type: "priority"; values: ("low" | "medium" | "high")[] }
+  | { type: "priority"; values: ("low" | "medium" | "high" | "urgent")[] }
   | { type: "tag"; values: number[] }
+  | { type: "assignee"; values: (number | null)[] }
   | { type: "due"; op: "before" | "after" | "between"; date: string; dateEnd?: string };
+
+export type AssigneeQuick = "all" | "me";
 
 export interface FilterState {
   sort: SortState;
   filters: FilterCondition[];
   /** When false, hide "done" tasks */
   closed: boolean;
+  /** Quick assignee toggle: "all" shows everyone; "me" shows only tasks assigned to current user */
+  assigneeQuick: AssigneeQuick;
 }
 
 export const DEFAULT_FILTER_STATE: FilterState = {
   sort: { field: "manual", dir: "asc" },
   filters: [],
   closed: true,
+  assigneeQuick: "all",
 };
 
 const PRIORITY_RANK: Record<string, number> = {
+  urgent: 4,
   high: 3,
   medium: 2,
   low: 1,
@@ -37,13 +44,23 @@ function priorityRank(p: string | null | undefined): number {
 }
 
 export function isFilterStateDefault(s: FilterState): boolean {
-  return s.sort.field === "manual" && s.filters.length === 0 && s.closed === true;
+  return (
+    s.sort.field === "manual" &&
+    s.filters.length === 0 &&
+    s.closed === true &&
+    s.assigneeQuick === "all"
+  );
+}
+
+export interface FilterSortCtx {
+  currentUserId: number | null;
+  tagIdsOf: (task: Task) => number[];
 }
 
 function matchesCondition(
   task: Task,
   cond: FilterCondition,
-  tagIdsOf: (task: Task) => number[]
+  ctx: FilterSortCtx
 ): boolean {
   switch (cond.type) {
     case "priority": {
@@ -52,8 +69,12 @@ function matchesCondition(
     }
     case "tag": {
       if (cond.values.length === 0) return true;
-      const ids = tagIdsOf(task);
+      const ids = ctx.tagIdsOf(task);
       return cond.values.some((id) => ids.includes(id));
+    }
+    case "assignee": {
+      const ta = task.assigneeId ?? null;
+      return cond.values.some((v) => v === ta);
     }
     case "due": {
       if (!task.dueDate) return false;
@@ -72,14 +93,25 @@ function matchesCondition(
   }
 }
 
+function matchesAssigneeQuick(
+  task: Task,
+  quick: AssigneeQuick,
+  currentUserId: number | null
+): boolean {
+  if (quick === "all") return true;
+  if (quick === "me") return currentUserId != null && task.assigneeId === currentUserId;
+  return true;
+}
+
 export function passesFilters(
   task: Task,
   state: FilterState,
-  tagIdsOf: (task: Task) => number[]
+  ctx: FilterSortCtx
 ): boolean {
   if (!state.closed && task.status === "done") return false;
+  if (!matchesAssigneeQuick(task, state.assigneeQuick, ctx.currentUserId)) return false;
   for (const cond of state.filters) {
-    if (!matchesCondition(task, cond, tagIdsOf)) return false;
+    if (!matchesCondition(task, cond, ctx)) return false;
   }
   return true;
 }
@@ -117,9 +149,9 @@ function compareTasks(a: Task, b: Task, sort: SortState): number {
 export function applyFilterSort(
   tasks: Task[],
   state: FilterState,
-  tagIdsOf: (task: Task) => number[]
+  ctx: FilterSortCtx
 ): Task[] {
-  const filtered = tasks.filter((t) => passesFilters(t, state, tagIdsOf));
+  const filtered = tasks.filter((t) => passesFilters(t, state, ctx));
   return filtered.sort((a, b) => compareTasks(a, b, state.sort));
 }
 

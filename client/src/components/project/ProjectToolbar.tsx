@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowDownUp, Filter as FilterIcon, RotateCcw, Eye, EyeOff, X } from "lucide-react";
+import { ArrowDownUp, Filter as FilterIcon, RotateCcw, Eye, EyeOff, User, X } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -12,15 +12,24 @@ import {
   type SortField,
   type SortDir,
   type FilterCondition,
+  type AssigneeQuick,
 } from "@/lib/filterSort";
 import type { TagLike } from "./TagChips";
+import { trpc } from "@/lib/trpc";
 
 // ─── types ───────────────────────────────────────────────────────────────────
+
+interface MemberLike {
+  id: number;
+  name: string | null;
+  email: string | null;
+}
 
 export interface ProjectToolbarProps {
   state: FilterState;
   onChange: (s: FilterState) => void;
   tags: TagLike[];
+  projectId: number;
   totalCount: number;
   visibleCount: number;
 }
@@ -37,7 +46,8 @@ const SORT_FIELD_LABELS: Record<SortField, string> = {
 
 const SORT_FIELDS: SortField[] = ["manual", "priority", "due_date", "created_at", "title"];
 
-const PRIORITY_OPTIONS: { value: "low" | "medium" | "high"; label: string }[] = [
+const PRIORITY_OPTIONS: { value: "low" | "medium" | "high" | "urgent"; label: string }[] = [
+  { value: "urgent", label: "Urgent" },
   { value: "high", label: "High" },
   { value: "medium", label: "Medium" },
   { value: "low", label: "Low" },
@@ -148,12 +158,20 @@ function FilterControl({
   state,
   onChange,
   tags,
+  projectId,
 }: {
   state: FilterState;
   onChange: (s: FilterState) => void;
   tags: TagLike[];
+  projectId: number;
 }) {
   const [open, setOpen] = useState(false);
+
+  // Fetch members for assignee filter (only when popover is open)
+  const { data: members = [] } = trpc.members.list.useQuery(
+    { projectId },
+    { enabled: open }
+  );
 
   const priorityFilter = state.filters.find((f) => f.type === "priority") as
     | Extract<FilterCondition, { type: "priority" }>
@@ -161,10 +179,13 @@ function FilterControl({
   const tagFilter = state.filters.find((f) => f.type === "tag") as
     | Extract<FilterCondition, { type: "tag" }>
     | undefined;
+  const assigneeFilter = state.filters.find((f) => f.type === "assignee") as
+    | Extract<FilterCondition, { type: "assignee" }>
+    | undefined;
 
   const isActive = state.filters.length > 0;
 
-  const togglePriority = (v: "low" | "medium" | "high") => {
+  const togglePriority = (v: "low" | "medium" | "high" | "urgent") => {
     const current = priorityFilter?.values ?? [];
     const next = current.includes(v) ? current.filter((p) => p !== v) : [...current, v];
     const otherFilters = state.filters.filter((f) => f.type !== "priority");
@@ -183,6 +204,18 @@ function FilterControl({
       next.length === 0
         ? otherFilters
         : [{ type: "tag", values: next }, ...otherFilters];
+    onChange({ ...state, filters: newFilters });
+  };
+
+  // Assignee filter: values are (number | null)[]; null means "unassigned"
+  const toggleAssignee = (id: number | null) => {
+    const current = assigneeFilter?.values ?? [];
+    const next = current.includes(id) ? current.filter((a) => a !== id) : [...current, id];
+    const otherFilters = state.filters.filter((f) => f.type !== "assignee");
+    const newFilters: FilterCondition[] =
+      next.length === 0
+        ? otherFilters
+        : [{ type: "assignee", values: next }, ...otherFilters];
     onChange({ ...state, filters: newFilters });
   };
 
@@ -257,6 +290,42 @@ function FilterControl({
           </>
         )}
 
+        {/* Assignee */}
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground px-2 py-1 mb-1 border-t border-border mt-1 pt-2">
+          Assignee
+        </div>
+        <div className="flex flex-wrap gap-1 px-2 pb-2">
+          {/* Unassigned option */}
+          <button
+            type="button"
+            onClick={() => toggleAssignee(null)}
+            className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+              assigneeFilter?.values.includes(null) ?? false
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:bg-accent"
+            }`}
+          >
+            Unassigned
+          </button>
+          {members.map((m) => {
+            const selected = assigneeFilter?.values.includes(m.id) ?? false;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => toggleAssignee(m.id)}
+                className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                  selected
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-muted-foreground border-border hover:bg-accent"
+                }`}
+              >
+                {m.name ?? m.email ?? `User ${m.id}`}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Clear */}
         {isActive && (
           <div className="border-t border-border mt-1 pt-1 px-2">
@@ -275,6 +344,24 @@ function FilterControl({
         )}
       </PopoverContent>
     </Popover>
+  );
+}
+
+// ─── OnlyMeToggle ─────────────────────────────────────────────────────────────
+
+function OnlyMeToggle({
+  value,
+  onChange,
+}: {
+  value: AssigneeQuick;
+  onChange: (v: AssigneeQuick) => void;
+}) {
+  const isMe = value === "me";
+  return (
+    <PillButton active={isMe} onClick={() => onChange(isMe ? "all" : "me")}>
+      <User className="w-3 h-3" />
+      Only me
+    </PillButton>
   );
 }
 
@@ -301,6 +388,7 @@ export function ProjectToolbar({
   state,
   onChange,
   tags,
+  projectId,
   totalCount,
   visibleCount,
 }: ProjectToolbarProps) {
@@ -315,7 +403,11 @@ export function ProjectToolbar({
       <div className="flex-1" />
 
       <SortControl state={state} onChange={onChange} />
-      <FilterControl state={state} onChange={onChange} tags={tags} />
+      <FilterControl state={state} onChange={onChange} tags={tags} projectId={projectId} />
+      <OnlyMeToggle
+        value={state.assigneeQuick}
+        onChange={(a) => onChange({ ...state, assigneeQuick: a })}
+      />
       <ClosedToggle
         closed={state.closed}
         onChange={(c) => onChange({ ...state, closed: c })}

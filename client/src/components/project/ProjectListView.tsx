@@ -41,6 +41,7 @@ import {
   type FilterState,
 } from "@/lib/filterSort";
 import { ProjectToolbar } from "./ProjectToolbar";
+import type { FilterSortCtx } from "@/lib/filterSort";
 
 // ─── InlineNewSubtaskRow ──────────────────────────────────────────────────────
 
@@ -555,6 +556,10 @@ function StatusSection({
 export default function ProjectListView({ projectId, tasks: initialTasks }: ProjectViewProps) {
   const utils = trpc.useUtils();
 
+  // Get current user for "Only me" filter
+  const { data: currentUser } = trpc.auth.me.useQuery();
+  const currentUserId = currentUser?.id ?? null;
+
   const update = trpc.tasks.update.useMutation({
     onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
   });
@@ -616,7 +621,13 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
     try {
       const raw = localStorage.getItem(filterStorageKey);
       if (!raw) return DEFAULT_FILTER_STATE;
-      return JSON.parse(raw) as FilterState;
+      const parsed = JSON.parse(raw) as Partial<FilterState>;
+      // Migrate: fill in fields added in later rounds
+      return {
+        ...DEFAULT_FILTER_STATE,
+        ...parsed,
+        assigneeQuick: parsed.assigneeQuick ?? "all",
+      };
     } catch {
       return DEFAULT_FILTER_STATE;
     }
@@ -694,11 +705,19 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
   // Drag is disabled when a non-manual sort is active
   const dragDisabledBySort = filterState.sort.field !== "manual";
 
+  // Build filter/sort context
+  const filterCtx = useMemo<FilterSortCtx>(
+    () => ({
+      currentUserId,
+      tagIdsOf: (t) => tagIdsByTask.get(t.id) ?? [],
+    }),
+    [currentUserId, tagIdsByTask]
+  );
+
   // Apply filter + sort to root tasks; determine which statuses to show
   const filteredRootTasks = useMemo(
-    () =>
-      applyFilterSort(rootTasks, filterState, (t) => tagIdsByTask.get(t.id) ?? []),
-    [rootTasks, filterState, tagIdsByTask]
+    () => applyFilterSort(rootTasks, filterState, filterCtx),
+    [rootTasks, filterState, filterCtx]
   );
 
   const shownStatuses = useMemo(() => visibleStatuses(filterState), [filterState]);
@@ -882,6 +901,7 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
           state={filterState}
           onChange={handleFilterChange}
           tags={rawTags}
+          projectId={projectId}
           totalCount={rootTasks.length}
           visibleCount={filteredRootTasks.length}
         />
