@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef, useCallback, type ReactNode } from "react";
 import {
   startOfMonth,
   endOfMonth,
@@ -11,152 +11,367 @@ import {
   addMonths,
   subMonths,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { STATUS_META } from "@/lib/statusMeta";
+import { PriorityFlag } from "./PriorityPicker";
+import { getEffectiveDates } from "@/lib/taskHierarchy";
 import type { ProjectViewProps } from "./types";
 import type { Task } from "../../../../drizzle/schema";
 
-// ─── constants ───────────────────────────────────────────────────────────────
+// ─── constants ────────────────────────────────────────────────────────────────
 
 const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const MAX_VISIBLE_LANES = 3;
+const LANE_HEIGHT = 20; // px
+const LANE_GAP = 2; // px
 
-const MAX_CHIPS_PER_CELL = 3;
+// ─── helpers ──────────────────────────────────────────────────────────────────
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
-
-/** Returns the Date to pin a task to — prefers dueDate, falls back to startDate. */
-function pinDate(task: Task): Date | null {
-  if (task.dueDate) return task.dueDate;
-  if (task.startDate) return task.startDate;
-  return null;
+function addDaysToDate(d: Date, days: number): Date {
+  const r = new Date(d);
+  r.setDate(d.getDate() + days);
+  return r;
 }
 
-/** Build 6-week grid (42 days) starting from the Sunday before the first of the month. */
+function diffDays(a: Date, b: Date): number {
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+}
+
+function floorDay(d: Date): Date {
+  const r = new Date(d);
+  r.setHours(0, 0, 0, 0);
+  return r;
+}
+
+function maxDate(a: Date, b: Date): Date {
+  return a.getTime() >= b.getTime() ? a : b;
+}
+
+function minDate(a: Date, b: Date): Date {
+  return a.getTime() <= b.getTime() ? a : b;
+}
+
+/** Build 6-week grid (42 days) starting from Sunday before month start */
 function buildMonthGrid(cursor: Date): Date[] {
   const monthStart = startOfMonth(cursor);
   const monthEnd = endOfMonth(cursor);
   const gridStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const gridEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-  const days = eachDayOfInterval({ start: gridStart, end: gridEnd });
-  // Always return at least 42 days (6 weeks)
+  const days = eachDayOfInterval({ start: gridStart, end: gridEnd }).map(floorDay);
   while (days.length < 42) {
     const last = days[days.length - 1];
-    const next = new Date(last);
-    next.setDate(last.getDate() + 1);
-    days.push(next);
+    days.push(addDaysToDate(last, 1));
   }
   return days.slice(0, 42);
 }
 
-// ─── TaskChip ────────────────────────────────────────────────────────────────
+// ─── SpanTask ─────────────────────────────────────────────────────────────────
 
-function TaskChip({
-  task,
-  onClick,
-}: {
+interface SpanTask {
   task: Task;
-  onClick: () => void;
-}) {
-  const statusMeta = STATUS_META[task.status as keyof typeof STATUS_META] ?? STATUS_META.todo;
-  const isDone = task.status === "done";
-
-  return (
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      title={task.title}
-      className={`w-full text-left text-[11px] px-1.5 py-0.5 rounded truncate transition-opacity ${
-        isDone ? "opacity-60 line-through" : ""
-      }`}
-      style={{
-        backgroundColor: statusMeta.color + "22",
-        borderLeft: `3px solid ${statusMeta.color}`,
-        color: "var(--foreground)",
-      }}
-    >
-      {task.title}
-    </button>
-  );
+  start: Date;
+  end: Date;
 }
 
-// ─── DayCell ─────────────────────────────────────────────────────────────────
+function toSpanTasks(tasks: Task[]): SpanTask[] {
+  // Only root tasks
+  const rootTasks = tasks.filter((t) => t.parentTaskId == null);
+  // Build subtasks map
+  const subtasksByParent = new Map<number, Task[]>();
+  for (const t of tasks) {
+    if (t.parentTaskId != null) {
+      const arr = subtasksByParent.get(t.parentTaskId) ?? [];
+      arr.push(t);
+      subtasksByParent.set(t.parentTaskId, arr);
+    }
+  }
 
-function DayCell({
-  date,
-  isCurrentMonth,
-  isToday,
-  tasks,
-  onAddTask,
-  onClickTask,
+  const result: SpanTask[] = [];
+  for (const t of rootTasks) {
+    const subtasks = subtasksByParent.get(t.id) ?? [];
+    const { startDate, dueDate } = getEffectiveDates(t, subtasks);
+    if (!startDate && !dueDate) continue;
+
+    let start: Date;
+    let end: Date;
+    if (startDate && dueDate) {
+      start = floorDay(startDate);
+      end = floorDay(dueDate);
+      if (end < start) { const tmp = start; start = end; end = tmp; }
+    } else if (startDate) {
+      start = floorDay(startDate);
+      end = start;
+    } else {
+      start = floorDay(dueDate!);
+      end = start;
+    }
+    result.push({ task: t, start, end });
+  }
+  return result;
+}
+
+// ─── Lane assignment ──────────────────────────────────────────────────────────
+
+interface LaneEntry {
+  span: SpanTask;
+  lane: number;
+}
+
+function assignLanesForWeek(
+  weekStart: Date,
+  weekEnd: Date,
+  spans: SpanTask[]
+): LaneEntry[] {
+  const intersecting = spans.filter((s) => s.end >= weekStart && s.start <= weekEnd);
+  intersecting.sort((a, b) => {
+    const aStart = maxDate(a.start, weekStart).getTime();
+    const bStart = maxDate(b.start, weekStart).getTime();
+    if (aStart !== bStart) return aStart - bStart;
+    return a.task.id - b.task.id;
+  });
+
+  const laneEnds: Date[] = [];
+  const result: LaneEntry[] = [];
+  for (const s of intersecting) {
+    const segStart = maxDate(s.start, weekStart);
+    let lane = -1;
+    for (let i = 0; i < laneEnds.length; i++) {
+      if (laneEnds[i] < segStart) { lane = i; break; }
+    }
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(s.end);
+    } else {
+      laneEnds[lane] = s.end;
+    }
+    result.push({ span: s, lane });
+  }
+  return result;
+}
+
+// ─── Priority → color ─────────────────────────────────────────────────────────
+
+function priorityColor(priority: Task["priority"]): string {
+  switch (priority) {
+    case "urgent": return "#ef4444";
+    case "high":   return "#f59e0b";
+    case "medium": return "#3b82f6";
+    case "low":    return "#94a3b8";
+    default:       return "#3b82f6";
+  }
+}
+
+// ─── Drag state ───────────────────────────────────────────────────────────────
+
+type DragKind = "move" | "resize-left" | "resize-right";
+
+interface DragState {
+  taskId: number;
+  kind: DragKind;
+  startX: number;
+  cellWidth: number;
+  originalStart: Date;
+  originalEnd: Date;
+  currentDelta: number;
+}
+
+// ─── TaskBar ──────────────────────────────────────────────────────────────────
+
+function TaskBar({
+  span,
+  lane,
+  weekStart,
+  weekEnd,
+  onDragStart,
+  dragDelta,
+  dragKind,
+  isDragging,
 }: {
-  date: Date;
-  isCurrentMonth: boolean;
-  isToday: boolean;
-  tasks: Task[];
-  onAddTask: (date: Date) => void;
-  onClickTask: (task: Task) => void;
+  span: SpanTask;
+  lane: number;
+  weekStart: Date;
+  weekEnd: Date;
+  onDragStart: (kind: DragKind, e: React.PointerEvent) => void;
+  dragDelta: number;
+  dragKind: DragKind | null;
+  isDragging: boolean;
 }) {
-  const visible = tasks.slice(0, MAX_CHIPS_PER_CELL);
-  const overflowCount = tasks.length - visible.length;
+  // Apply optimistic delta
+  let effectiveStart = span.start;
+  let effectiveEnd = span.end;
+  if (isDragging && dragKind) {
+    if (dragKind === "move") {
+      effectiveStart = addDaysToDate(span.start, dragDelta);
+      effectiveEnd = addDaysToDate(span.end, dragDelta);
+    } else if (dragKind === "resize-left") {
+      effectiveStart = addDaysToDate(span.start, dragDelta);
+      if (effectiveStart > effectiveEnd) effectiveStart = effectiveEnd;
+    } else if (dragKind === "resize-right") {
+      effectiveEnd = addDaysToDate(span.end, dragDelta);
+      if (effectiveEnd < effectiveStart) effectiveEnd = effectiveStart;
+    }
+  }
+
+  const segStart = maxDate(effectiveStart, weekStart);
+  const segEnd = minDate(effectiveEnd, weekEnd);
+  if (segStart > weekEnd || segEnd < weekStart) return null;
+
+  const offsetDays = diffDays(weekStart, segStart);
+  const spanDays = diffDays(segStart, segEnd) + 1;
+  const continuesLeft = effectiveStart < weekStart;
+  const continuesRight = effectiveEnd > weekEnd;
+
+  const color = priorityColor(span.task.priority);
+  const bg = color + "2e"; // ~18% opacity hex
+  const isDone = span.task.status === "done";
+
+  const left = `${(offsetDays / 7) * 100}%`;
+  const width = `calc(${(spanDays / 7) * 100}% - 4px)`;
+  const top = lane * (LANE_HEIGHT + LANE_GAP);
+
+  const radiusClass = (() => {
+    if (continuesLeft && continuesRight) return "";
+    if (continuesLeft) return "rounded-r-md";
+    if (continuesRight) return "rounded-l-md";
+    return "rounded-md";
+  })();
 
   return (
     <div
-      className={`relative flex flex-col border-r border-b border-border min-h-[110px] px-1.5 pt-1 pb-1 group transition-colors ${
-        isToday
-          ? "bg-accent"
-          : isCurrentMonth
-          ? "bg-card"
-          : "bg-background"
-      }`}
+      style={{
+        position: "absolute",
+        left,
+        width,
+        top,
+        height: LANE_HEIGHT,
+        zIndex: isDragging ? 30 : 10,
+        pointerEvents: "auto",
+      }}
     >
-      {/* date number */}
-      <div className="flex items-center justify-between mb-1">
+      {/* Main bar body */}
+      <div
+        className={`relative h-full flex items-center gap-1 px-1.5 text-[11px] border select-none ${radiusClass} ${
+          isDone ? "opacity-60" : ""
+        }`}
+        style={{
+          backgroundColor: bg,
+          borderColor: color,
+          color: "var(--foreground)",
+          cursor: "grab",
+        }}
+        title={`${span.task.title} (${format(span.start, "MM/dd")} → ${format(span.end, "MM/dd")})`}
+        onPointerDown={(e) => {
+          // Only handle on bar body, not edges
+          const target = e.target as HTMLElement;
+          if (target.dataset.edge) return;
+          e.stopPropagation();
+          onDragStart("move", e);
+        }}
+      >
+        {/* Left resize handle */}
+        {!continuesLeft && (
+          <div
+            data-edge="left"
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 6,
+              cursor: "ew-resize",
+              zIndex: 2,
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onDragStart("resize-left", e);
+            }}
+            title="Drag to change start date"
+          />
+        )}
+
+        {!continuesLeft && (
+          <PriorityFlag value={span.task.priority} size={10} className="flex-shrink-0" />
+        )}
         <span
-          className={`text-xs font-medium px-0.5 ${
-            isToday
-              ? "text-primary font-semibold"
-              : isCurrentMonth
-              ? "text-foreground"
-              : "text-muted-foreground/40"
-          }`}
+          className="truncate flex-1 min-w-0"
+          style={{ textDecoration: isDone ? "line-through" : undefined }}
         >
-          {format(date, "d")}
+          {span.task.title}
         </span>
 
-        {/* + button (visible on hover) */}
-        {isCurrentMonth && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddTask(date);
+        {/* Right resize handle */}
+        {!continuesRight && (
+          <div
+            data-edge="right"
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              bottom: 0,
+              width: 6,
+              cursor: "ew-resize",
+              zIndex: 2,
             }}
-            className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition"
-            title={`Add task on ${format(date, "MMM d")}`}
-          >
-            <Plus className="w-3 h-3" />
-          </button>
-        )}
-      </div>
-
-      {/* task chips */}
-      <div className="flex flex-col gap-0.5 flex-1 overflow-hidden">
-        {visible.map((t) => (
-          <TaskChip key={t.id} task={t} onClick={() => onClickTask(t)} />
-        ))}
-        {overflowCount > 0 && (
-          <span className="text-[10px] text-muted-foreground px-1">
-            +{overflowCount} more
-          </span>
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              onDragStart("resize-right", e);
+            }}
+            title="Drag to change due date"
+          />
         )}
       </div>
     </div>
   );
 }
 
-// ─── ProjectCalendarView ─────────────────────────────────────────────────────
+// ─── DayCell ──────────────────────────────────────────────────────────────────
+
+function DayCell({
+  date,
+  isCurrentMonth,
+  isToday,
+  onDoubleClick,
+  children,
+}: {
+  date: Date;
+  isCurrentMonth: boolean;
+  isToday: boolean;
+  onDoubleClick: (date: Date) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      className={`relative border-r border-b border-border px-1.5 pt-1 pb-1 ${
+        isToday
+          ? "bg-accent"
+          : isCurrentMonth
+          ? "bg-card"
+          : "bg-background"
+      }`}
+      onDoubleClick={(e) => {
+        // Only trigger if double-clicking on empty area (not a bar)
+        const target = e.target as HTMLElement;
+        if (target.closest("[data-task-bar]")) return;
+        onDoubleClick(date);
+      }}
+    >
+      <div
+        className={`text-xs px-0.5 ${
+          isToday
+            ? "text-primary font-semibold"
+            : isCurrentMonth
+            ? "text-foreground"
+            : "text-muted-foreground/40"
+        }`}
+      >
+        {format(date, "d")}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ─── ProjectCalendarView ──────────────────────────────────────────────────────
 
 export default function ProjectCalendarView({ projectId, tasks }: ProjectViewProps) {
   const today = useMemo(() => {
@@ -166,37 +381,41 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
   }, []);
 
   const [cursor, setCursor] = useState(() => startOfMonth(today));
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const utils = trpc.useUtils();
-
   const updateTask = trpc.tasks.update.useMutation({
     onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
   });
-
   const createTask = trpc.tasks.create.useMutation({
     onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
   });
 
-  // Build 42-day grid
+  // Build grid
   const grid = useMemo(() => buildMonthGrid(cursor), [cursor]);
+  const spans = useMemo(() => toSpanTasks(tasks), [tasks]);
 
-  // Group tasks by their pin date (yyyy-MM-dd string key)
-  const tasksByDate = useMemo(() => {
-    const map = new Map<string, Task[]>();
-    for (const task of tasks) {
-      const pin = pinDate(task);
-      if (!pin) continue;
-      const key = format(pin, "yyyy-MM-dd");
-      const existing = map.get(key) ?? [];
-      existing.push(task);
-      map.set(key, existing);
+  // 6 week rows, each with lane assignments
+  const weekRows = useMemo(() => {
+    const rows: {
+      weekStart: Date;
+      weekEnd: Date;
+      days: Date[];
+      lanes: LaneEntry[];
+    }[] = [];
+    for (let w = 0; w < 6; w++) {
+      const days = grid.slice(w * 7, w * 7 + 7);
+      const weekStart = days[0];
+      const weekEnd = days[6];
+      const lanes = assignLanesForWeek(weekStart, weekEnd, spans);
+      rows.push({ weekStart, weekEnd, days, lanes });
     }
-    return map;
-  }, [tasks]);
+    return rows;
+  }, [grid, spans]);
 
-  // Tasks with no date
   const noDueTasks = useMemo(
-    () => tasks.filter((t) => !t.dueDate && !t.startDate),
+    () => tasks.filter((t) => t.parentTaskId == null && !t.dueDate && !t.startDate),
     [tasks]
   );
 
@@ -205,12 +424,13 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
   const nextMonth = () => setCursor((c) => startOfMonth(addMonths(c, 1)));
   const goToday = () => setCursor(startOfMonth(today));
 
-  // Create a new task on a given date
-  const handleAddTask = (date: Date) => {
-    const title = window.prompt(`New task on ${format(date, "MMM d, yyyy")}:`);
+  // Double-click create
+  const handleDoubleClick = (date: Date) => {
+    const title = window.prompt(`在 ${format(date, "MM/dd")} 新增任務:`);
     if (!title || !title.trim()) return;
     createTask.mutate({
       title: title.trim(),
+      startDate: date,
       dueDate: date,
       projectId,
       category: null,
@@ -218,27 +438,68 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
     });
   };
 
-  // Click a task chip — toggle status between todo/in_progress/done
-  const handleClickTask = (task: Task) => {
-    const nextStatus =
-      task.status === "todo"
-        ? "in_progress"
-        : task.status === "in_progress"
-        ? "done"
-        : "todo";
-    updateTask.mutate({ id: task.id, status: nextStatus });
-  };
+  // Drag handling with pointer events
+  const handleDragStart = useCallback(
+    (span: SpanTask, kind: DragKind, e: React.PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const gridEl = gridRef.current;
+      if (!gridEl) return;
+      const cellWidth = gridEl.clientWidth / 7;
+
+      setDragState({
+        taskId: span.task.id,
+        kind,
+        startX: e.clientX,
+        cellWidth,
+        originalStart: span.start,
+        originalEnd: span.end,
+        currentDelta: 0,
+      });
+
+      const handlePointerMove = (ev: PointerEvent) => {
+        setDragState((prev) => {
+          if (!prev) return null;
+          const delta = Math.round((ev.clientX - prev.startX) / prev.cellWidth);
+          return { ...prev, currentDelta: delta };
+        });
+      };
+
+      const handlePointerUp = (ev: PointerEvent) => {
+        document.removeEventListener("pointermove", handlePointerMove);
+        document.removeEventListener("pointerup", handlePointerUp);
+
+        setDragState((prev) => {
+          if (!prev || prev.currentDelta === 0) return null;
+
+          const { taskId, kind: dragKind, originalStart, originalEnd, currentDelta } = prev;
+
+          if (dragKind === "move") {
+            const newStart = addDaysToDate(originalStart, currentDelta);
+            const newEnd = addDaysToDate(originalEnd, currentDelta);
+            updateTask.mutate({ id: taskId, startDate: newStart, dueDate: newEnd });
+          } else if (dragKind === "resize-left") {
+            let newStart = addDaysToDate(originalStart, currentDelta);
+            if (newStart > originalEnd) newStart = originalEnd;
+            updateTask.mutate({ id: taskId, startDate: newStart, dueDate: originalEnd });
+          } else if (dragKind === "resize-right") {
+            let newEnd = addDaysToDate(originalEnd, currentDelta);
+            if (newEnd < originalStart) newEnd = originalStart;
+            updateTask.mutate({ id: taskId, startDate: originalStart, dueDate: newEnd });
+          }
+
+          return null;
+        });
+      };
+
+      document.addEventListener("pointermove", handlePointerMove);
+      document.addEventListener("pointerup", handlePointerUp);
+    },
+    [updateTask]
+  );
 
   const monthLabel = format(cursor, "MMMM yyyy");
-
-  // Split grid into 6 week rows
-  const weeks = useMemo(() => {
-    const rows: Date[][] = [];
-    for (let i = 0; i < 6; i++) {
-      rows.push(grid.slice(i * 7, i * 7 + 7));
-    }
-    return rows;
-  }, [grid]);
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
@@ -270,7 +531,7 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
           </button>
         </div>
         <div className="text-xs text-muted-foreground">
-          Hover a cell and click + to add a task · Click a task chip to cycle its status
+          雙擊空白日期新增 ・ 拖橫條移動 ・ 拖左右邊調整起訖
         </div>
       </div>
 
@@ -289,47 +550,110 @@ export default function ProjectCalendarView({ projectId, tasks }: ProjectViewPro
         </div>
 
         {/* Week rows */}
-        <div className="flex-1 border-l border-border">
-          {weeks.map((week, wi) => (
-            <div key={wi} className="grid grid-cols-7">
-              {week.map((day) => {
-                const key = format(day, "yyyy-MM-dd");
-                const dayTasks = tasksByDate.get(key) ?? [];
-                return (
-                  <DayCell
-                    key={key}
-                    date={day}
-                    isCurrentMonth={isSameMonth(day, cursor)}
-                    isToday={isSameDay(day, today)}
-                    tasks={dayTasks}
-                    onAddTask={handleAddTask}
-                    onClickTask={handleClickTask}
-                  />
-                );
-              })}
-            </div>
-          ))}
+        <div className="flex-1 border-l border-border" ref={gridRef}>
+          {weekRows.map((row, wi) => {
+            const visibleLanes = row.lanes.filter((l) => l.lane < MAX_VISIBLE_LANES);
+            const overflowLanes = row.lanes.filter((l) => l.lane >= MAX_VISIBLE_LANES);
+
+            // Count overflow tasks per day (for "+N more" badges)
+            const overflowByDate: Record<string, number> = {};
+            for (const entry of overflowLanes) {
+              for (const day of row.days) {
+                const floored = floorDay(day);
+                if (entry.span.start <= floored && entry.span.end >= floored) {
+                  const key = format(day, "yyyy-MM-dd");
+                  overflowByDate[key] = (overflowByDate[key] ?? 0) + 1;
+                }
+              }
+            }
+
+            const barAreaHeight =
+              visibleLanes.length > 0
+                ? (visibleLanes.reduce((acc, l) => Math.max(acc, l.lane + 1), 0)) * (LANE_HEIGHT + LANE_GAP)
+                : 0;
+            const rowMinHeight = Math.max(110, 28 + barAreaHeight + 18);
+
+            return (
+              <div
+                key={wi}
+                className="relative"
+                style={{ minHeight: rowMinHeight }}
+              >
+                {/* Day cells grid (provides background + date numbers + double-click) */}
+                <div className="grid grid-cols-7 h-full">
+                  {row.days.map((day) => {
+                    const isCurrentMonth = isSameMonth(day, cursor);
+                    const isToday = isSameDay(day, today);
+                    const key = format(day, "yyyy-MM-dd");
+                    const overflow = overflowByDate[key] ?? 0;
+
+                    return (
+                      <DayCell
+                        key={key}
+                        date={day}
+                        isCurrentMonth={isCurrentMonth}
+                        isToday={isToday}
+                        onDoubleClick={handleDoubleClick}
+                      >
+                        {overflow > 0 && (
+                          <div
+                            className="absolute left-1.5 right-1.5 text-[10px] text-muted-foreground"
+                            style={{ bottom: 4 }}
+                          >
+                            +{overflow} more
+                          </div>
+                        )}
+                      </DayCell>
+                    );
+                  })}
+                </div>
+
+                {/* Bars overlay — absolutely positioned over the day grid */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ top: 24 }}
+                >
+                  {visibleLanes.map((entry) => {
+                    const isThisDragging = dragState?.taskId === entry.span.task.id;
+                    return (
+                      <div key={entry.span.task.id} data-task-bar="true">
+                        <TaskBar
+                          span={entry.span}
+                          lane={entry.lane}
+                          weekStart={row.weekStart}
+                          weekEnd={row.weekEnd}
+                          onDragStart={(kind, e) => handleDragStart(entry.span, kind, e)}
+                          dragDelta={isThisDragging ? (dragState?.currentDelta ?? 0) : 0}
+                          dragKind={isThisDragging ? (dragState?.kind ?? null) : null}
+                          isDragging={isThisDragging}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* No-date tasks tray */}
         {noDueTasks.length > 0 && (
           <div className="border-t border-border bg-card px-4 py-3 max-h-28 overflow-y-auto flex-shrink-0">
             <div className="text-xs text-muted-foreground mb-2">
-              Tasks without a date (set a due or start date to place them on the calendar)
+              沒有日期的任務（設好 start/due 才會出現在日曆上）
             </div>
             <div className="flex flex-wrap gap-1">
               {noDueTasks.map((t) => {
-                const meta = STATUS_META[t.status as keyof typeof STATUS_META] ?? STATUS_META.todo;
+                const color = priorityColor(t.priority);
                 return (
-                  <button
+                  <span
                     key={t.id}
-                    onClick={() => handleClickTask(t)}
-                    className="text-xs px-2 py-0.5 rounded border border-border hover:bg-accent transition"
-                    style={{ borderLeftColor: meta.color, borderLeftWidth: 3 }}
+                    className="text-xs px-2 py-0.5 rounded border border-border"
+                    style={{ borderLeftColor: color, borderLeftWidth: 3 }}
                     title={t.title}
                   >
                     {t.title}
-                  </button>
+                  </span>
                 );
               })}
             </div>
