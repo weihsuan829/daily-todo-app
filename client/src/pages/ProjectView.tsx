@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRoute, Link } from "wouter";
 import { ArrowLeft, BarChart3, Calendar as CalendarIcon, Columns3, List } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -6,6 +6,14 @@ import ProjectListView from "@/components/project/ProjectListView";
 import ProjectKanbanView from "@/components/project/ProjectKanbanView";
 import ProjectCalendarView from "@/components/project/ProjectCalendarView";
 import ProjectGanttView from "@/components/project/ProjectGanttView";
+import { ProjectToolbar } from "@/components/project/ProjectToolbar";
+import type { TagLike } from "@/components/project/TagChips";
+import {
+  DEFAULT_FILTER_STATE,
+  applyFilterSort,
+  type FilterState,
+  type FilterSortCtx,
+} from "@/lib/filterSort";
 
 type ViewMode = "list" | "kanban" | "calendar" | "gantt";
 const VIEW_META: Record<ViewMode, { label: string; Icon: typeof List }> = {
@@ -23,6 +31,85 @@ export default function ProjectView() {
   const { data: projects = [] } = trpc.projects.list.useQuery();
   const project = projects.find((p) => p.id === projectId);
   const { data: tasks = [], isLoading } = trpc.tasks.listByProject.useQuery({ projectId }, { enabled: Number.isFinite(projectId) });
+
+  // ─── Filter state (persisted per project) ────────────────────────────────────
+  const filterStorageKey = `projectFilter_${projectId}`;
+  const [filterState, setFilterState] = useState<FilterState>(() => {
+    try {
+      const raw = localStorage.getItem(filterStorageKey);
+      if (!raw) return DEFAULT_FILTER_STATE;
+      const parsed = JSON.parse(raw) as Partial<FilterState>;
+      return {
+        ...DEFAULT_FILTER_STATE,
+        ...parsed,
+        assigneeQuick: parsed.assigneeQuick ?? "all",
+      };
+    } catch {
+      return DEFAULT_FILTER_STATE;
+    }
+  });
+
+  const handleFilterChange = (next: FilterState) => {
+    setFilterState(next);
+    try {
+      localStorage.setItem(filterStorageKey, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
+
+  // ─── Current user (for "Only me" filter) ─────────────────────────────────────
+  const { data: me } = trpc.auth.me.useQuery();
+  const currentUserId = me?.id ?? null;
+
+  // ─── Tags ─────────────────────────────────────────────────────────────────────
+  const { data: allTags = [] } = trpc.tags.list.useQuery({ projectId }, { enabled: Number.isFinite(projectId) });
+  const { data: taskTagRows = [] } = trpc.tags.taskMap.useQuery({ projectId }, { enabled: Number.isFinite(projectId) });
+
+  const tagsById = useMemo<Record<number, TagLike>>(() => {
+    const m: Record<number, TagLike> = {};
+    for (const t of allTags) m[t.id] = t;
+    return m;
+  }, [allTags]);
+
+  const tagIdsByTask = useMemo<Map<number, number[]>>(() => {
+    const m = new Map<number, number[]>();
+    for (const { taskId, tagId } of taskTagRows) {
+      const arr = m.get(taskId) ?? [];
+      arr.push(tagId);
+      m.set(taskId, arr);
+    }
+    return m;
+  }, [taskTagRows]);
+
+  // ─── Filtered tasks ───────────────────────────────────────────────────────────
+  const rootTasks = useMemo(() => tasks.filter((t) => t.parentTaskId == null), [tasks]);
+
+  const filterCtx = useMemo<FilterSortCtx>(
+    () => ({
+      currentUserId,
+      tagIdsOf: (t) => tagIdsByTask.get(t.id) ?? [],
+    }),
+    [currentUserId, tagIdsByTask]
+  );
+
+  const survivingRoots = useMemo(
+    () => applyFilterSort(rootTasks, filterState, filterCtx),
+    [rootTasks, filterState, filterCtx]
+  );
+
+  const survivingRootIds = useMemo(
+    () => new Set(survivingRoots.map((t) => t.id)),
+    [survivingRoots]
+  );
+
+  const filteredTasks = useMemo(() => {
+    // Surviving roots + every subtask whose parent survived
+    const subtasks = tasks.filter(
+      (t) => t.parentTaskId != null && survivingRootIds.has(t.parentTaskId)
+    );
+    return [...survivingRoots, ...subtasks];
+  }, [tasks, survivingRoots, survivingRootIds]);
 
   if (!project)
     return (
@@ -59,13 +146,58 @@ export default function ProjectView() {
           })}
         </div>
       </header>
+
+      {/* Shared filter/sort toolbar — visible for ALL views */}
+      <div className="px-8 py-3 border-b border-border bg-card">
+        <ProjectToolbar
+          state={filterState}
+          onChange={handleFilterChange}
+          tags={allTags}
+          projectId={projectId}
+          totalCount={rootTasks.length}
+          visibleCount={survivingRoots.length}
+        />
+      </div>
+
       <div className="flex-1 overflow-auto">
         {isLoading ? <div className="p-8 text-muted-foreground text-sm">載入中…</div> : (
           <>
-            {view === "list" && <ProjectListView projectId={projectId} tasks={tasks} />}
-            {view === "kanban" && <ProjectKanbanView projectId={projectId} tasks={tasks} />}
-            {view === "calendar" && <ProjectCalendarView projectId={projectId} tasks={tasks} />}
-            {view === "gantt" && <ProjectGanttView projectId={projectId} tasks={tasks} />}
+            {view === "list" && (
+              <ProjectListView
+                projectId={projectId}
+                tasks={filteredTasks}
+                filterState={filterState}
+                tagsById={tagsById}
+                tagIdsByTask={tagIdsByTask}
+              />
+            )}
+            {view === "kanban" && (
+              <ProjectKanbanView
+                projectId={projectId}
+                tasks={filteredTasks}
+                filterState={filterState}
+                tagsById={tagsById}
+                tagIdsByTask={tagIdsByTask}
+              />
+            )}
+            {view === "calendar" && (
+              <ProjectCalendarView
+                projectId={projectId}
+                tasks={filteredTasks}
+                filterState={filterState}
+                tagsById={tagsById}
+                tagIdsByTask={tagIdsByTask}
+              />
+            )}
+            {view === "gantt" && (
+              <ProjectGanttView
+                projectId={projectId}
+                tasks={filteredTasks}
+                filterState={filterState}
+                tagsById={tagsById}
+                tagIdsByTask={tagIdsByTask}
+              />
+            )}
           </>
         )}
       </div>

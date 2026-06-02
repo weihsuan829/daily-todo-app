@@ -36,12 +36,9 @@ import type { ProjectViewProps } from "./types";
 import type { Task } from "../../../../drizzle/schema";
 import {
   DEFAULT_FILTER_STATE,
-  applyFilterSort,
   visibleStatuses,
   type FilterState,
 } from "@/lib/filterSort";
-import { ProjectToolbar } from "./ProjectToolbar";
-import type { FilterSortCtx } from "@/lib/filterSort";
 
 // ─── InlineNewSubtaskRow ──────────────────────────────────────────────────────
 
@@ -553,12 +550,29 @@ function StatusSection({
 
 // ─── ProjectListView ─────────────────────────────────────────────────────────
 
-export default function ProjectListView({ projectId, tasks: initialTasks }: ProjectViewProps) {
+export default function ProjectListView({
+  projectId,
+  tasks: initialTasks,
+  filterState: filterStateProp,
+  tagsById: tagsByIdProp,
+  tagIdsByTask: tagIdsByTaskProp,
+}: ProjectViewProps) {
   const utils = trpc.useUtils();
 
-  // Get current user for "Only me" filter
-  const { data: currentUser } = trpc.auth.me.useQuery();
-  const currentUserId = currentUser?.id ?? null;
+  // Use filterState from parent; fall back to default if not provided (should always be provided)
+  const filterState: FilterState = filterStateProp ?? DEFAULT_FILTER_STATE;
+
+  // Tags from parent; fall back to empty
+  const tagsById: Record<number, TagLike> = tagsByIdProp ?? {};
+  const tagIdsByTask: Map<number, number[]> = tagIdsByTaskProp ?? new Map();
+
+  // Fetch allTags for TagPicker (still needed for the picker dropdown)
+  const { data: rawTags = [] } = trpc.tags.list.useQuery({ projectId });
+
+  const handleTagChanged = () => {
+    utils.tags.taskMap.invalidate({ projectId });
+    utils.tags.list.invalidate({ projectId });
+  };
 
   const update = trpc.tasks.update.useMutation({
     onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
@@ -589,58 +603,6 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
       setBulkSelected(new Set());
     },
   });
-
-  // Tags data
-  const { data: rawTags = [] } = trpc.tags.list.useQuery({ projectId });
-  const { data: rawTaskMap = [] } = trpc.tags.taskMap.useQuery({ projectId });
-
-  const tagsById = useMemo<Record<number, TagLike>>(() => {
-    const m: Record<number, TagLike> = {};
-    for (const t of rawTags) m[t.id] = t;
-    return m;
-  }, [rawTags]);
-
-  const tagIdsByTask = useMemo<Map<number, number[]>>(() => {
-    const m = new Map<number, number[]>();
-    for (const { taskId, tagId } of rawTaskMap) {
-      const arr = m.get(taskId) ?? [];
-      arr.push(tagId);
-      m.set(taskId, arr);
-    }
-    return m;
-  }, [rawTaskMap]);
-
-  const handleTagChanged = () => {
-    utils.tags.taskMap.invalidate({ projectId });
-    utils.tags.list.invalidate({ projectId });
-  };
-
-  // ─── Filter state (persisted per project) ──────────────────────────────────
-  const filterStorageKey = `projectFilter_${projectId}`;
-  const [filterState, setFilterState] = useState<FilterState>(() => {
-    try {
-      const raw = localStorage.getItem(filterStorageKey);
-      if (!raw) return DEFAULT_FILTER_STATE;
-      const parsed = JSON.parse(raw) as Partial<FilterState>;
-      // Migrate: fill in fields added in later rounds
-      return {
-        ...DEFAULT_FILTER_STATE,
-        ...parsed,
-        assigneeQuick: parsed.assigneeQuick ?? "all",
-      };
-    } catch {
-      return DEFAULT_FILTER_STATE;
-    }
-  });
-
-  const handleFilterChange = (next: FilterState) => {
-    setFilterState(next);
-    try {
-      localStorage.setItem(filterStorageKey, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  };
 
   // ─── Bulk selection ────────────────────────────────────────────────────────
   const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
@@ -705,33 +667,18 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
   // Drag is disabled when a non-manual sort is active
   const dragDisabledBySort = filterState.sort.field !== "manual";
 
-  // Build filter/sort context
-  const filterCtx = useMemo<FilterSortCtx>(
-    () => ({
-      currentUserId,
-      tagIdsOf: (t) => tagIdsByTask.get(t.id) ?? [],
-    }),
-    [currentUserId, tagIdsByTask]
-  );
-
-  // Apply filter + sort to root tasks; determine which statuses to show
-  const filteredRootTasks = useMemo(
-    () => applyFilterSort(rootTasks, filterState, filterCtx),
-    [rootTasks, filterState, filterCtx]
-  );
-
   const shownStatuses = useMemo(() => visibleStatuses(filterState), [filterState]);
 
-  // Status grouping — only root tasks go into sections (filtered)
+  // Status grouping — root tasks are already filtered+sorted by parent; group them directly
   const tasksByStatus = useMemo(() => {
     const map: Record<TaskStatus, Task[]> = { todo: [], in_progress: [], done: [], archived: [] };
-    for (const t of filteredRootTasks) {
+    for (const t of rootTasks) {
       const s = t.status as TaskStatus;
       if (s in map) map[s].push(t);
       else map.todo.push(t);
     }
     return map;
-  }, [filteredRootTasks]);
+  }, [rootTasks]);
 
   // Section collapse state
   const [collapsedSections, setCollapsedSections] = useState<Set<TaskStatus>>(new Set());
@@ -895,18 +842,6 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
 
   return (
     <div className="flex-1 overflow-auto px-6 py-5 bg-background">
-      {/* Toolbar */}
-      <div className="mb-4">
-        <ProjectToolbar
-          state={filterState}
-          onChange={handleFilterChange}
-          tags={rawTags}
-          projectId={projectId}
-          totalCount={rootTasks.length}
-          visibleCount={filteredRootTasks.length}
-        />
-      </div>
-
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="space-y-3">
           {STATUS_ORDER.filter((s) => shownStatuses.includes(s)).map((s) => (
