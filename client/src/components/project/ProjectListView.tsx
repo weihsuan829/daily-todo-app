@@ -5,6 +5,8 @@ import {
   ChevronRight,
   GripVertical,
   Plus,
+  Trash2,
+  X,
 } from "lucide-react";
 import TagChips, { type TagLike } from "./TagChips";
 import TagPicker from "./TagPicker";
@@ -30,6 +32,13 @@ import { STATUS_META, STATUS_ORDER, statusPillClass, type TaskStatus } from "@/l
 import { getEffectiveDates } from "@/lib/taskHierarchy";
 import type { ProjectViewProps } from "./types";
 import type { Task } from "../../../../drizzle/schema";
+import {
+  DEFAULT_FILTER_STATE,
+  applyFilterSort,
+  visibleStatuses,
+  type FilterState,
+} from "@/lib/filterSort";
+import { ProjectToolbar } from "./ProjectToolbar";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -127,6 +136,9 @@ interface TaskRowProps {
   projectId?: number;
   onTagChanged?: () => void;
   allTags?: TagLike[];
+  // Bulk selection (root tasks only)
+  bulkChecked?: boolean;
+  onBulkToggle?: () => void;
 }
 
 function SortableTaskRow({
@@ -145,6 +157,8 @@ function SortableTaskRow({
   projectId,
   onTagChanged,
   allTags = [],
+  bulkChecked,
+  onBulkToggle,
 }: TaskRowProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -179,6 +193,21 @@ function SortableTaskRow({
       style={style}
       className="group border-t border-border hover:bg-accent/40"
     >
+      {/* bulk checkbox — root tasks only */}
+      {!isSubtask && onBulkToggle != null && (
+        <td className="w-6 px-1 pl-2" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={bulkChecked ?? false}
+            onChange={onBulkToggle}
+            className="rounded border-border accent-primary cursor-pointer"
+            title="Select task"
+          />
+        </td>
+      )}
+      {/* placeholder for subtasks so columns align */}
+      {isSubtask && onBulkToggle == null && <td className="w-6" />}
+
       {/* drag handle */}
       <td className="w-8 px-1" onClick={(e) => e.stopPropagation()}>
         {dragDisabled ? (
@@ -368,6 +397,9 @@ function StatusSection({
   projectId,
   onTagChanged,
   allTags,
+  bulkSelected,
+  onBulkToggle,
+  dragDisabledBySort,
 }: {
   status: TaskStatus;
   tasks: Task[];
@@ -396,6 +428,9 @@ function StatusSection({
   projectId: number;
   onTagChanged: () => void;
   allTags: TagLike[];
+  bulkSelected: Set<number>;
+  onBulkToggle: (id: number) => void;
+  dragDisabledBySort: boolean;
 }) {
   const [newTitle, setNewTitle] = useState("");
   const meta = STATUS_META[sectionStatus];
@@ -452,6 +487,7 @@ function StatusSection({
                         task={t}
                         onToggleStatus={() => onToggleStatus(t.id)}
                         onUpdate={(changes) => onUpdate(t.id, changes)}
+                        dragDisabled={dragDisabledBySort}
                         hasChildren={hasChildren}
                         childrenCollapsed={isCollapsed}
                         onToggleChildren={
@@ -464,6 +500,8 @@ function StatusSection({
                         projectId={projectId}
                         onTagChanged={onTagChanged}
                         allTags={allTags}
+                        bulkChecked={bulkSelected.has(t.id)}
+                        onBulkToggle={() => onBulkToggle(t.id)}
                       />,
                       // Expanded subtask rows
                       ...(!isCollapsed
@@ -545,6 +583,20 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
     onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
   });
 
+  const bulkUpdate = trpc.tasks.bulkUpdate.useMutation({
+    onSuccess: () => {
+      utils.tasks.listByProject.invalidate({ projectId });
+      setBulkSelected(new Set());
+    },
+  });
+
+  const bulkDelete = trpc.tasks.bulkDelete.useMutation({
+    onSuccess: () => {
+      utils.tasks.listByProject.invalidate({ projectId });
+      setBulkSelected(new Set());
+    },
+  });
+
   // Tags data
   const { data: rawTags = [] } = trpc.tags.list.useQuery({ projectId });
   const { data: rawTaskMap = [] } = trpc.tags.taskMap.useQuery({ projectId });
@@ -568,6 +620,54 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
   const handleTagChanged = () => {
     utils.tags.taskMap.invalidate({ projectId });
     utils.tags.list.invalidate({ projectId });
+  };
+
+  // ─── Filter state (persisted per project) ──────────────────────────────────
+  const filterStorageKey = `projectFilter_${projectId}`;
+  const [filterState, setFilterState] = useState<FilterState>(() => {
+    try {
+      const raw = localStorage.getItem(filterStorageKey);
+      if (!raw) return DEFAULT_FILTER_STATE;
+      return JSON.parse(raw) as FilterState;
+    } catch {
+      return DEFAULT_FILTER_STATE;
+    }
+  });
+
+  const handleFilterChange = (next: FilterState) => {
+    setFilterState(next);
+    try {
+      localStorage.setItem(filterStorageKey, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  };
+
+  // ─── Bulk selection ────────────────────────────────────────────────────────
+  const [bulkSelected, setBulkSelected] = useState<Set<number>>(new Set());
+
+  const handleBulkToggle = (id: number) => {
+    setBulkSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const clearBulk = () => setBulkSelected(new Set());
+
+  const handleBulkUpdateStatus = (status: TaskStatus) => {
+    bulkUpdate.mutate({ ids: Array.from(bulkSelected), status });
+  };
+
+  const handleBulkUpdatePriority = (priority: "low" | "medium" | "high") => {
+    bulkUpdate.mutate({ ids: Array.from(bulkSelected), priority });
+  };
+
+  const handleBulkDelete = () => {
+    if (!window.confirm(`Delete ${bulkSelected.size} task(s)?`)) return;
+    bulkDelete.mutate({ ids: Array.from(bulkSelected) });
   };
 
   // local optimistic tasks state (seed from props, update locally on reorder)
@@ -603,16 +703,28 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
     return map;
   }, [tasks]);
 
-  // Status grouping — only root tasks go into sections
+  // Drag is disabled when a non-manual sort is active
+  const dragDisabledBySort = filterState.sort.field !== "manual";
+
+  // Apply filter + sort to root tasks; determine which statuses to show
+  const filteredRootTasks = useMemo(
+    () =>
+      applyFilterSort(rootTasks, filterState, (t) => tagIdsByTask.get(t.id) ?? []),
+    [rootTasks, filterState, tagIdsByTask]
+  );
+
+  const shownStatuses = useMemo(() => visibleStatuses(filterState), [filterState]);
+
+  // Status grouping — only root tasks go into sections (filtered)
   const tasksByStatus = useMemo(() => {
     const map: Record<TaskStatus, Task[]> = { todo: [], in_progress: [], done: [] };
-    for (const t of rootTasks) {
+    for (const t of filteredRootTasks) {
       const s = t.status as TaskStatus;
       if (s in map) map[s].push(t);
       else map.todo.push(t);
     }
     return map;
-  }, [rootTasks]);
+  }, [filteredRootTasks]);
 
   // Section collapse state
   const [collapsedSections, setCollapsedSections] = useState<Set<TaskStatus>>(new Set());
@@ -770,9 +882,20 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
 
   return (
     <div className="flex-1 overflow-auto px-6 py-5 bg-background">
+      {/* Toolbar */}
+      <div className="mb-4">
+        <ProjectToolbar
+          state={filterState}
+          onChange={handleFilterChange}
+          tags={rawTags}
+          totalCount={rootTasks.length}
+          visibleCount={filteredRootTasks.length}
+        />
+      </div>
+
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <div className="space-y-3">
-          {STATUS_ORDER.map((s) => (
+          {STATUS_ORDER.filter((s) => shownStatuses.includes(s)).map((s) => (
             <StatusSection
               key={s}
               status={s}
@@ -794,10 +917,68 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
               projectId={projectId}
               onTagChanged={handleTagChanged}
               allTags={rawTags}
+              bulkSelected={bulkSelected}
+              onBulkToggle={handleBulkToggle}
+              dragDisabledBySort={dragDisabledBySort}
             />
           ))}
         </div>
       </DndContext>
+
+      {/* Floating bulk action bar */}
+      {bulkSelected.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-gray-100 rounded-xl shadow-2xl px-4 py-3 flex items-center gap-3 z-30">
+          <span className="text-sm">{bulkSelected.size} selected</span>
+          <div className="w-px h-5 bg-gray-700" />
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) handleBulkUpdateStatus(e.target.value as TaskStatus);
+              e.target.value = "";
+            }}
+            className="bg-gray-800 text-gray-100 text-sm rounded px-2 py-1 border border-gray-700"
+          >
+            <option value="">Change status…</option>
+            {(["todo", "in_progress", "done"] as TaskStatus[]).map((s) => (
+              <option key={s} value={s}>
+                {s === "todo" ? "To Do" : s === "in_progress" ? "In Progress" : "Done"}
+              </option>
+            ))}
+          </select>
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) handleBulkUpdatePriority(e.target.value as "low" | "medium" | "high");
+              e.target.value = "";
+            }}
+            className="bg-gray-800 text-gray-100 text-sm rounded px-2 py-1 border border-gray-700"
+          >
+            <option value="">Change priority…</option>
+            {(["low", "medium", "high"] as const).map((p) => (
+              <option key={p} value={p}>
+                {p.charAt(0).toUpperCase() + p.slice(1)}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={handleBulkDelete}
+            className="inline-flex items-center gap-1 text-sm px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-white transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </button>
+          <div className="w-px h-5 bg-gray-700" />
+          <button
+            type="button"
+            onClick={clearBulk}
+            className="p-1 text-gray-300 hover:text-white transition-colors"
+            title="Clear selection"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
