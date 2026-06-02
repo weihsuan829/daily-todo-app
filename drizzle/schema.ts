@@ -38,6 +38,7 @@ export const tasks = mysqlTable("tasks", {
   priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
   quadrant: mysqlEnum("quadrant", ["urgent-important", "not-urgent-important", "urgent-not-important", "not-urgent-not-important"]),
   projectId: int("projectId"),
+  parentTaskId: int("parentTaskId"),
   status: mysqlEnum("status", ["todo", "in_progress", "done"]).default("todo").notNull(),
   startDate: timestamp("startDate"),
   completed: boolean("completed").default(false).notNull(),
@@ -84,6 +85,22 @@ export const projects = mysqlTable("projects", {
 });
 export type Project = typeof projects.$inferSelect;
 export type InsertProject = typeof projects.$inferInsert;
+
+export const tags = mysqlTable("tags", {
+  id: int("id").autoincrement().primaryKey(),
+  projectId: int("projectId").notNull(),
+  name: varchar("name", { length: 50 }).notNull(),
+  color: varchar("color", { length: 20 }).default("#94a3b8").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Tag = typeof tags.$inferSelect;
+export type InsertTag = typeof tags.$inferInsert;
+
+export const taskTags = mysqlTable("task_tags", {
+  taskId: int("taskId").notNull(),
+  tagId: int("tagId").notNull(),
+});
+export type TaskTag = typeof taskTags.$inferSelect;
 
 /**
  * Deleted recurring task instances table
