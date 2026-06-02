@@ -1,6 +1,6 @@
 import { eq, and, asc, desc, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project } from "../drizzle/schema";
+import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
 
@@ -989,6 +989,58 @@ export async function reorderProjectTasks(userId: number, orderedIds: number[]) 
   for (let i = 0; i < orderedIds.length; i++) {
     await db.update(tasks).set({ order: i })
       .where(and(eq(tasks.id, orderedIds[i]), eq(tasks.userId, userId)));
+  }
+  return { success: true };
+}
+
+// ---- Tags ----
+export async function listTags(userId: number, projectId: number) {
+  const db = await getDb(); if (!db) return [];
+  if (!(await userOwnsProject(db, userId, projectId))) return [];
+  return db.select().from(tags).where(eq(tags.projectId, projectId));
+}
+
+export async function createTag(userId: number, projectId: number, name: string, color?: string) {
+  const db = await getDb(); if (!db) return null;
+  if (!(await userOwnsProject(db, userId, projectId))) return null;
+  return db.insert(tags).values({ projectId, name, color });
+}
+
+export async function deleteTag(userId: number, tagId: number) {
+  const db = await getDb(); if (!db) return null;
+  await db.delete(taskTags).where(eq(taskTags.tagId, tagId));
+  return db.delete(tags).where(eq(tags.id, tagId));
+}
+
+export async function setTaskTags(userId: number, taskId: number, tagIds: number[]) {
+  const db = await getDb(); if (!db) return null;
+  await db.delete(taskTags).where(eq(taskTags.taskId, taskId));
+  if (tagIds.length) await db.insert(taskTags).values(tagIds.map((tagId) => ({ taskId, tagId })));
+  return { success: true };
+}
+
+export async function listTaskTags(userId: number, projectId: number) {
+  const db = await getDb(); if (!db) return [];
+  if (!(await userOwnsProject(db, userId, projectId))) return [];
+  return db.select({ taskId: taskTags.taskId, tagId: taskTags.tagId })
+    .from(taskTags).innerJoin(tasks, eq(taskTags.taskId, tasks.id))
+    .where(eq(tasks.projectId, projectId));
+}
+
+// ---- Bulk Operations ----
+export async function bulkUpdateTasks(userId: number, ids: number[], changes: { status?: "todo" | "in_progress" | "done"; priority?: "low" | "medium" | "high" }) {
+  const db = await getDb(); if (!db) return null;
+  const synced = applyStatusCompletionSync(changes);
+  for (const id of ids) {
+    await db.update(tasks).set({ ...synced, updatedAt: new Date() }).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
+  }
+  return { success: true };
+}
+
+export async function bulkDeleteTasks(userId: number, ids: number[]) {
+  const db = await getDb(); if (!db) return null;
+  for (const id of ids) {
+    await db.delete(tasks).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
   }
   return { success: true };
 }
