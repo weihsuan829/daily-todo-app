@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder } from "./db";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -31,13 +31,16 @@ export const appRouter = router({
         category: z.enum(["work", "life", "eisenhower"]).nullable().optional(),
         title: z.string().min(1).max(255),
         description: z.string().optional(),
-        priority: z.enum(["low", "medium", "high"]).default("medium"),
+        priority: z.enum(["low", "medium", "high", "urgent"]).default("medium"),
         dueDate: z.date().optional(),
         quadrant: z.enum(["urgent-important", "not-urgent-important", "urgent-not-important", "not-urgent-not-important"]).optional(),
         projectId: z.number().optional(),
         status: z.enum(["todo", "in_progress", "done"]).optional(),
         startDate: z.date().optional(),
         parentTaskId: z.number().optional(),
+        assigneeId: z.number().nullable().optional(),
+        assigneePlaceholderId: z.number().nullable().optional(),
+        recurrenceRule: z.string().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const result = await createTask(ctx.user.id, {
@@ -52,6 +55,9 @@ export const appRouter = router({
           status: input.status,
           startDate: input.startDate,
           parentTaskId: input.parentTaskId,
+          assigneeId: input.assigneeId,
+          assigneePlaceholderId: input.assigneePlaceholderId,
+          recurrenceRule: input.recurrenceRule,
         });
         return result;
       }),
@@ -62,16 +68,21 @@ export const appRouter = router({
         category: z.enum(["work", "life", "eisenhower"]).optional(),
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
-        priority: z.enum(["low", "medium", "high"]).optional(),
+        priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
         completed: z.boolean().optional(),
         dueDate: z.date().nullable().optional(),
         order: z.number().optional(),
         projectId: z.number().nullable().optional(),
         status: z.enum(["todo", "in_progress", "done"]).optional(),
         startDate: z.date().nullable().optional(),
+        assigneeId: z.number().nullable().optional(),
+        assigneePlaceholderId: z.number().nullable().optional(),
+        recurrenceRule: z.string().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const { id, ...updates } = input;
+        if (updates.assigneeId != null) updates.assigneePlaceholderId = null;
+        else if (updates.assigneePlaceholderId != null) updates.assigneeId = null;
         const result = await updateTask(id, ctx.user.id, updates);
         return result;
       }),
@@ -113,8 +124,8 @@ export const appRouter = router({
 
     setTags: protectedProcedure.input(z.object({ id: z.number(), tagIds: z.array(z.number()) }))
       .mutation(async ({ ctx, input }) => setTaskTags(ctx.user.id, input.id, input.tagIds)),
-    bulkUpdate: protectedProcedure.input(z.object({ ids: z.array(z.number()), status: z.enum(["todo","in_progress","done"]).optional(), priority: z.enum(["low","medium","high"]).optional() }))
-      .mutation(async ({ ctx, input }) => bulkUpdateTasks(ctx.user.id, input.ids, { status: input.status, priority: input.priority })),
+    bulkUpdate: protectedProcedure.input(z.object({ ids: z.array(z.number()), status: z.enum(["todo","in_progress","done"]).optional(), priority: z.enum(["low","medium","high","urgent"]).optional() }))
+      .mutation(async ({ ctx, input }) => bulkUpdateTasks(ctx.user.id, input.ids, { status: input.status, priority: input.priority as "low" | "medium" | "high" | undefined })),
     bulkDelete: protectedProcedure.input(z.object({ ids: z.array(z.number()) }))
       .mutation(async ({ ctx, input }) => bulkDeleteTasks(ctx.user.id, input.ids)),
   }),
@@ -367,6 +378,20 @@ export const appRouter = router({
         const tasks = await getAllTasksForAdmin(ctx.user.id);
         return tasks;
       }),
+  }),
+
+  members: router({
+    list: protectedProcedure.input(z.object({ projectId: z.number() }))
+      .query(async ({ ctx, input }) => listWorkspaceMembers(ctx.user.id, input.projectId)),
+  }),
+
+  placeholders: router({
+    list: protectedProcedure.input(z.object({ projectId: z.number() }))
+      .query(async ({ ctx, input }) => listPlaceholders(ctx.user.id, input.projectId)),
+    create: protectedProcedure.input(z.object({ projectId: z.number(), name: z.string().min(1).max(64), color: z.string().max(20).optional() }))
+      .mutation(async ({ ctx, input }) => createPlaceholder(ctx.user.id, input.projectId, input.name, input.color)),
+    delete: protectedProcedure.input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => deletePlaceholder(ctx.user.id, input.id)),
   }),
 });
 
