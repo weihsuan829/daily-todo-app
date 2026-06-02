@@ -42,7 +42,7 @@ export const tasks = mysqlTable("tasks", {
   assigneeId: int("assigneeId"),
   assigneePlaceholderId: int("assigneePlaceholderId"),
   recurrenceRule: text("recurrenceRule"),
-  status: mysqlEnum("status", ["todo", "in_progress", "done"]).default("todo").notNull(),
+  status: mysqlEnum("status", ["todo", "in_progress", "done", "archived"]).default("todo").notNull(),
   startDate: timestamp("startDate"),
   completed: boolean("completed").default(false).notNull(),
   completedAt: timestamp("completedAt"),

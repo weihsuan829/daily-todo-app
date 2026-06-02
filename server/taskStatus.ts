@@ -1,4 +1,4 @@
-export type TaskStatus = "todo" | "in_progress" | "done";
+export type TaskStatus = "todo" | "in_progress" | "done" | "archived";
 
 export interface StatusSyncInput {
   completed?: boolean;
