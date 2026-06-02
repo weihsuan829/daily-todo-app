@@ -5,6 +5,7 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerDevAuthRoutes } from "./devAuth";
+import { registerUploadRoutes } from "./uploads";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -36,6 +37,8 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
+  // File upload routes (must be before tRPC + vite catch-all)
+  registerUploadRoutes(app);
   // Dev-only login bypass (no Manus OAuth server needed locally)
   if (process.env.NODE_ENV === "development") {
     registerDevAuthRoutes(app);
