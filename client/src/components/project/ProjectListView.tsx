@@ -6,6 +6,8 @@ import {
   GripVertical,
   Plus,
 } from "lucide-react";
+import TagChips, { type TagLike } from "./TagChips";
+import TagPicker from "./TagPicker";
 import {
   DndContext,
   PointerSensor,
@@ -119,6 +121,12 @@ interface TaskRowProps {
   onToggleChildren?: () => void;
   subtasks?: Task[];
   onAddSubtask?: (parentId: number) => void;
+  // Tags
+  tagIds?: number[];
+  tagsById?: Record<number, TagLike>;
+  projectId?: number;
+  onTagChanged?: () => void;
+  allTags?: TagLike[];
 }
 
 function SortableTaskRow({
@@ -132,6 +140,11 @@ function SortableTaskRow({
   onToggleChildren,
   subtasks,
   onAddSubtask,
+  tagIds = [],
+  tagsById = {},
+  projectId,
+  onTagChanged,
+  allTags = [],
 }: TaskRowProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -199,74 +212,90 @@ function SortableTaskRow({
 
       {/* title */}
       <td className="px-3 py-2 text-foreground min-w-0">
-        <div className={`flex items-center gap-1.5 ${isSubtask ? "pl-6" : ""}`}>
-          {/* expand/collapse chevron for parent tasks with children */}
-          {hasChildren && onToggleChildren && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleChildren();
-              }}
-              className="-ml-1 p-0.5 text-muted-foreground hover:text-foreground flex-shrink-0"
-              title={childrenCollapsed ? "Expand subtasks" : "Collapse subtasks"}
-            >
-              {childrenCollapsed ? (
-                <ChevronRight className="w-3.5 h-3.5" />
-              ) : (
-                <ChevronDown className="w-3.5 h-3.5" />
-              )}
-            </button>
-          )}
-          {/* subtask indent indicator */}
-          {isSubtask && (
-            <span className="text-muted-foreground/50 text-xs flex-shrink-0">↳</span>
-          )}
-          {isEditingTitle ? (
-            <input
-              autoFocus
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.currentTarget.value)}
-              onFocus={(e) => e.currentTarget.select()}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commitTitle(editTitle);
-                } else if (e.key === "Escape") {
-                  e.preventDefault();
-                  setIsEditingTitle(false);
+        <div className={`flex flex-col gap-0.5 ${isSubtask ? "pl-6" : ""}`}>
+          <div className="flex items-center gap-1.5">
+            {/* expand/collapse chevron for parent tasks with children */}
+            {hasChildren && onToggleChildren && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onToggleChildren();
+                }}
+                className="-ml-1 p-0.5 text-muted-foreground hover:text-foreground flex-shrink-0"
+                title={childrenCollapsed ? "Expand subtasks" : "Collapse subtasks"}
+              >
+                {childrenCollapsed ? (
+                  <ChevronRight className="w-3.5 h-3.5" />
+                ) : (
+                  <ChevronDown className="w-3.5 h-3.5" />
+                )}
+              </button>
+            )}
+            {/* subtask indent indicator */}
+            {isSubtask && (
+              <span className="text-muted-foreground/50 text-xs flex-shrink-0">↳</span>
+            )}
+            {isEditingTitle ? (
+              <input
+                autoFocus
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.currentTarget.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitTitle(editTitle);
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    setIsEditingTitle(false);
+                    setEditTitle(task.title);
+                  }
+                }}
+                onBlur={() => commitTitle(editTitle)}
+                className="border border-ring rounded px-1.5 py-0.5 text-sm outline-none focus:ring-2 focus:ring-ring min-w-[160px] bg-background text-foreground"
+              />
+            ) : (
+              <span
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
                   setEditTitle(task.title);
-                }
-              }}
-              onBlur={() => commitTitle(editTitle)}
-              className="border border-ring rounded px-1.5 py-0.5 text-sm outline-none focus:ring-2 focus:ring-ring min-w-[160px] bg-background text-foreground"
-            />
-          ) : (
-            <span
-              onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                setEditTitle(task.title);
-                setIsEditingTitle(true);
-              }}
-              className={`cursor-text select-none text-sm flex-1 ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}
-              title="Double-click to rename"
-            >
-              {task.title}
-            </span>
-          )}
-          {/* "+ subtask" hover button — root tasks only */}
-          {!isSubtask && onAddSubtask && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddSubtask(task.id);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0"
-              title="Add subtask"
-            >
-              <Plus className="w-3 h-3" />
-            </button>
+                  setIsEditingTitle(true);
+                }}
+                className={`cursor-text select-none text-sm flex-1 ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}
+                title="Double-click to rename"
+              >
+                {task.title}
+              </span>
+            )}
+            {/* "+ subtask" hover button — root tasks only */}
+            {!isSubtask && onAddSubtask && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddSubtask(task.id);
+                }}
+                className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0"
+                title="Add subtask"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            )}
+            {/* tag picker hover button */}
+            {projectId != null && onTagChanged && (
+              <TagPicker
+                taskId={task.id}
+                projectId={projectId}
+                tags={allTags}
+                selectedTagIds={tagIds}
+                onChanged={onTagChanged}
+              />
+            )}
+          </div>
+          {/* tag chips row */}
+          {tagIds.length > 0 && (
+            <TagChips tagIds={tagIds} tagsById={tagsById} size="xs" />
           )}
         </div>
       </td>
@@ -334,6 +363,11 @@ function StatusSection({
   onAddSubtaskRequest,
   onCreateSubtask,
   onCancelAddSubtask,
+  tagIdsByTask,
+  tagsById,
+  projectId,
+  onTagChanged,
+  allTags,
 }: {
   status: TaskStatus;
   tasks: Task[];
@@ -357,6 +391,11 @@ function StatusSection({
   onAddSubtaskRequest: (parentId: number) => void;
   onCreateSubtask: (parentId: number, title: string) => void;
   onCancelAddSubtask: () => void;
+  tagIdsByTask: Map<number, number[]>;
+  tagsById: Record<number, TagLike>;
+  projectId: number;
+  onTagChanged: () => void;
+  allTags: TagLike[];
 }) {
   const [newTitle, setNewTitle] = useState("");
   const meta = STATUS_META[sectionStatus];
@@ -420,6 +459,11 @@ function StatusSection({
                         }
                         subtasks={hasChildren ? subs : undefined}
                         onAddSubtask={onAddSubtaskRequest}
+                        tagIds={tagIdsByTask.get(t.id) ?? []}
+                        tagsById={tagsById}
+                        projectId={projectId}
+                        onTagChanged={onTagChanged}
+                        allTags={allTags}
                       />,
                       // Expanded subtask rows
                       ...(!isCollapsed
@@ -431,6 +475,11 @@ function StatusSection({
                               onUpdate={(changes) => onUpdate(sub.id, changes)}
                               dragDisabled
                               isSubtask
+                              tagIds={tagIdsByTask.get(sub.id) ?? []}
+                              tagsById={tagsById}
+                              projectId={projectId}
+                              onTagChanged={onTagChanged}
+                              allTags={allTags}
                             />
                           ))
                         : []),
@@ -495,6 +544,31 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
   const reorder = trpc.tasks.reorder.useMutation({
     onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
   });
+
+  // Tags data
+  const { data: rawTags = [] } = trpc.tags.list.useQuery({ projectId });
+  const { data: rawTaskMap = [] } = trpc.tags.taskMap.useQuery({ projectId });
+
+  const tagsById = useMemo<Record<number, TagLike>>(() => {
+    const m: Record<number, TagLike> = {};
+    for (const t of rawTags) m[t.id] = t;
+    return m;
+  }, [rawTags]);
+
+  const tagIdsByTask = useMemo<Map<number, number[]>>(() => {
+    const m = new Map<number, number[]>();
+    for (const { taskId, tagId } of rawTaskMap) {
+      const arr = m.get(taskId) ?? [];
+      arr.push(tagId);
+      m.set(taskId, arr);
+    }
+    return m;
+  }, [rawTaskMap]);
+
+  const handleTagChanged = () => {
+    utils.tags.taskMap.invalidate({ projectId });
+    utils.tags.list.invalidate({ projectId });
+  };
 
   // local optimistic tasks state (seed from props, update locally on reorder)
   const [localOrder, setLocalOrder] = useState<number[] | null>(null);
@@ -715,6 +789,11 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
               onAddSubtaskRequest={handleAddSubtaskRequest}
               onCreateSubtask={handleCreateSubtask}
               onCancelAddSubtask={handleCancelAddSubtask}
+              tagIdsByTask={tagIdsByTask}
+              tagsById={tagsById}
+              projectId={projectId}
+              onTagChanged={handleTagChanged}
+              allTags={rawTags}
             />
           ))}
         </div>
