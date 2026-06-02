@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import TagChips, { type TagLike } from "./TagChips";
 import TagPicker from "./TagPicker";
+import { PriorityPicker } from "./PriorityPicker";
 import {
   DndContext,
   PointerSensor,
@@ -56,12 +57,6 @@ function fromDateInputValue(s: string): Date | undefined {
   const [y, m, day] = s.split("-").map(Number);
   return new Date(y, m - 1, day);
 }
-
-const PRIORITY_LABELS: Record<string, string> = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-};
 
 // ─── InlineNewSubtaskRow ──────────────────────────────────────────────────────
 
@@ -118,7 +113,7 @@ interface TaskRowProps {
   onToggleStatus: () => void;
   onUpdate: (changes: {
     title?: string;
-    priority?: "low" | "medium" | "high";
+    priority?: "low" | "medium" | "high" | "urgent" | null;
     dueDate?: Date | null;
     startDate?: Date | null;
   }) => void;
@@ -330,18 +325,11 @@ function SortableTaskRow({
       </td>
 
       {/* priority */}
-      <td className="px-3 py-2 w-28" onClick={(e) => e.stopPropagation()}>
-        <select
-          value={task.priority ?? "medium"}
-          onChange={(e) => onUpdate({ priority: e.target.value as "low" | "medium" | "high" })}
-          className="text-xs border border-border rounded px-1.5 py-0.5 bg-background text-foreground focus:ring-1 focus:ring-ring outline-none"
-        >
-          {(["low", "medium", "high"] as const).map((p) => (
-            <option key={p} value={p}>
-              {PRIORITY_LABELS[p]}
-            </option>
-          ))}
-        </select>
+      <td className="px-2 py-2 w-10" onClick={(e) => e.stopPropagation()}>
+        <PriorityPicker
+          value={(task.priority as "low" | "medium" | "high" | "urgent") ?? null}
+          onChange={(p) => onUpdate({ priority: p })}
+        />
       </td>
 
       {/* due date */}
@@ -410,7 +398,7 @@ function StatusSection({
     id: number,
     changes: {
       title?: string;
-      priority?: "low" | "medium" | "high";
+      priority?: "low" | "medium" | "high" | "urgent" | null;
       dueDate?: Date | null;
       startDate?: Date | null;
     }
@@ -857,7 +845,7 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
     id: number,
     changes: {
       title?: string;
-      priority?: "low" | "medium" | "high";
+      priority?: "low" | "medium" | "high" | "urgent" | null;
       dueDate?: Date | null;
       startDate?: Date | null;
     }
@@ -865,7 +853,9 @@ export default function ProjectListView({ projectId, tasks: initialTasks }: Proj
     update.mutate({
       id,
       ...(changes.title !== undefined ? { title: changes.title } : {}),
-      ...(changes.priority !== undefined ? { priority: changes.priority } : {}),
+      ...(changes.priority !== undefined
+        ? { priority: changes.priority ?? undefined }
+        : {}),
       ...(changes.dueDate !== undefined ? { dueDate: changes.dueDate ?? undefined } : {}),
       ...(changes.startDate !== undefined ? { startDate: changes.startDate } : {}),
     });
