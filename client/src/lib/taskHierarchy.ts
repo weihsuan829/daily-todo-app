@@ -51,15 +51,17 @@ export function getEffectiveDates(
     };
   }
 
-  const starts = subtasks
-    .map((t) => t.startDate)
-    .filter((d): d is Date => d != null);
-  const dues = subtasks
-    .map((t) => t.dueDate)
-    .filter((d): d is Date => d != null);
+  // Parent span = earliest → latest across ALL subtask dates (both start and
+  // due). A child with only a due date still extends the parent's span, so a
+  // parent of children due 6/4 and 6/5 shows 6/4 → 6/5.
+  const allDates: Date[] = [];
+  for (const t of subtasks) {
+    if (t.startDate != null) allDates.push(t.startDate);
+    if (t.dueDate != null) allDates.push(t.dueDate);
+  }
 
   // If children have no dates, fall back to task's own dates
-  if (starts.length === 0 && dues.length === 0) {
+  if (allDates.length === 0) {
     return {
       startDate: task.startDate ?? null,
       dueDate: task.dueDate ?? null,
@@ -67,18 +69,13 @@ export function getEffectiveDates(
     };
   }
 
-  const minStart =
-    starts.length > 0
-      ? starts.reduce((a, b) => (a.getTime() < b.getTime() ? a : b))
-      : null;
-  const maxDue =
-    dues.length > 0
-      ? dues.reduce((a, b) => (a.getTime() > b.getTime() ? a : b))
-      : null;
+  const min = allDates.reduce((a, b) => (a.getTime() < b.getTime() ? a : b));
+  const max = allDates.reduce((a, b) => (a.getTime() > b.getTime() ? a : b));
 
-  return {
-    startDate: minStart,
-    dueDate: maxDue,
-    isAggregated: true,
-  };
+  // All children share a single day → show one date instead of "X → X".
+  if (min.getTime() === max.getTime()) {
+    return { startDate: null, dueDate: max, isAggregated: true };
+  }
+
+  return { startDate: min, dueDate: max, isAggregated: true };
 }
