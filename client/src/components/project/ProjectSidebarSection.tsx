@@ -41,7 +41,6 @@ export default function ProjectSidebarSection() {
               <AlertDialogTrigger asChild>
                 <button
                   className="opacity-0 group-hover:opacity-100 p-1 mr-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-opacity"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
                   aria-label={`刪除專案「${p.name}」`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
