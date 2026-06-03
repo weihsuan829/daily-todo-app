@@ -20,7 +20,15 @@ import type { Task } from "../../../../drizzle/schema";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
-const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const WEEKDAY_LABELS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 const MAX_VISIBLE_LANES = 3;
 const LANE_HEIGHT = 24; // px
 const LANE_GAP = 4; // px
@@ -546,6 +554,7 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
 
       {/* Calendar grid */}
       <div className="flex-1 overflow-auto flex flex-col">
+        <div className="flex-1 flex flex-col px-6 pt-4 pb-4">
         {/* Weekday labels */}
         <div className="grid grid-cols-7 border-l border-t border-border bg-card flex-shrink-0">
           {WEEKDAY_LABELS.map((label) => (
@@ -661,6 +670,7 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
               </div>
             );
           })}
+        </div>
         </div>
 
         {/* No-date tasks tray */}
