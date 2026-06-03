@@ -22,8 +22,9 @@ import type { Task } from "../../../../drizzle/schema";
 
 const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MAX_VISIBLE_LANES = 3;
-const LANE_HEIGHT = 20; // px
-const LANE_GAP = 2; // px
+const LANE_HEIGHT = 24; // px
+const LANE_GAP = 4; // px
+const BARS_TOP = 28; // px — gap below the date number before the first bar
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -227,8 +228,8 @@ function TaskBar({
   const bg = color + "2e"; // ~18% opacity hex
   const isDone = span.task.status === "done";
 
-  const left = `${(offsetDays / 7) * 100}%`;
-  const width = `calc(${(spanDays / 7) * 100}% - 4px)`;
+  const left = `calc(${(offsetDays / 7) * 100}% + 3px)`;
+  const width = `calc(${(spanDays / 7) * 100}% - 7px)`;
   const top = lane * (LANE_HEIGHT + LANE_GAP);
 
   const radiusClass = (() => {
@@ -348,7 +349,7 @@ function DayCell({
     <div
       className={`relative border-r border-b border-border px-1.5 pt-1 pb-1 ${
         isToday
-          ? "bg-accent"
+          ? "bg-blue-50"
           : isCurrentMonth
           ? "bg-card"
           : "bg-background"
@@ -363,7 +364,7 @@ function DayCell({
       <div
         className={`text-xs px-0.5 ${
           isToday
-            ? "text-primary font-semibold"
+            ? "text-blue-600 font-semibold"
             : isCurrentMonth
             ? "text-foreground"
             : "text-muted-foreground/40"
@@ -581,7 +582,7 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
                 : 0;
             const hasOverflow = Object.keys(overflowByDate).length > 0;
             const moreRowHeight = hasOverflow ? LANE_HEIGHT : 0;
-            const rowMinHeight = Math.max(110, 28 + barAreaHeight + moreRowHeight + 12);
+            const rowMinHeight = Math.max(120, BARS_TOP + barAreaHeight + moreRowHeight + 14);
 
             return (
               <div
@@ -611,7 +612,7 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
                 {/* Bars overlay — absolutely positioned over the day grid */}
                 <div
                   className="absolute inset-0 pointer-events-none"
-                  style={{ top: 24 }}
+                  style={{ top: BARS_TOP }}
                 >
                   {visibleLanes.map((entry) => {
                     const isThisDragging = dragState?.taskId === entry.span.task.id;
