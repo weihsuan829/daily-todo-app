@@ -219,10 +219,7 @@ function GanttBar({
       <PriorityFlag value={task.priority} size={10} className="flex-shrink-0" />
       <span
         className="truncate font-medium flex-1 min-w-0"
-        style={{
-          color: "var(--foreground)",
-          textDecoration: isDone ? "line-through" : undefined,
-        }}
+        style={{ color: "var(--foreground)" }}
       >
         {task.title}
       </span>
@@ -803,7 +800,7 @@ export default function ProjectGanttView({
                     <span
                       className={`text-sm truncate flex-1 min-w-0 ${
                         row.task.status === "done"
-                          ? "line-through text-muted-foreground"
+                          ? "text-muted-foreground"
                           : "text-foreground"
                       }`}
                     >
@@ -853,7 +850,7 @@ export default function ProjectGanttView({
                   <span
                     className={`text-sm truncate flex-1 min-w-0 ${
                       row.task.status === "done"
-                        ? "line-through text-muted-foreground"
+                        ? "text-muted-foreground"
                         : "text-foreground"
                     }`}
                   >

@@ -436,7 +436,7 @@ export default function TaskDetailDrawer({
                     </button>
                     <span
                       className={`flex-1 truncate ${
-                        sub.status === "done" ? "line-through text-muted-foreground" : "text-foreground"
+                        sub.status === "done" ? "text-muted-foreground" : "text-foreground"
                       }`}
                     >
                       {sub.title}

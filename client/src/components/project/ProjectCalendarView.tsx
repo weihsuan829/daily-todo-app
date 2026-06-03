@@ -300,10 +300,7 @@ function TaskBar({
         {!continuesLeft && (
           <PriorityFlag value={span.task.priority} size={10} className="flex-shrink-0" />
         )}
-        <span
-          className="truncate flex-1 min-w-0"
-          style={{ textDecoration: isDone ? "line-through" : undefined }}
-        >
+        <span className="truncate flex-1 min-w-0">
           {span.task.title}
         </span>
 

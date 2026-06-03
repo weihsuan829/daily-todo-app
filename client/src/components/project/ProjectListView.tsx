@@ -266,7 +266,7 @@ function SortableTaskRow({
                   setEditTitle(task.title);
                   setIsEditingTitle(true);
                 }}
-                className={`cursor-pointer select-none text-sm flex-1 ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}
+                className={`cursor-pointer select-none text-sm flex-1 ${isDone ? "text-muted-foreground" : "text-foreground"}`}
                 title="Double-click to rename"
               >
                 {task.title}
