@@ -1,4 +1,4 @@
-import { eq, and, asc, desc, isNull } from "drizzle-orm";
+import { eq, and, asc, desc, isNull, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -1127,4 +1127,20 @@ export async function createComment(userId: number, taskId: number, content: str
 export async function deleteComment(userId: number, id: number) {
   const db = await getDb(); if (!db) return null;
   return db.delete(comments).where(and(eq(comments.id, id), eq(comments.userId, userId)));
+}
+
+export async function deleteProject(userId: number, projectId: number) {
+  const db = await getDb(); if (!db) return null;
+  if (!(await userOwnsProject(db, userId, projectId))) return null;
+  const taskRows = await db.select({ id: tasks.id }).from(tasks).where(eq(tasks.projectId, projectId));
+  const ids = taskRows.map((r) => r.id);
+  if (ids.length) {
+    await db.delete(taskTags).where(inArray(taskTags.taskId, ids));
+    await db.delete(comments).where(inArray(comments.taskId, ids));
+    await db.delete(attachments).where(inArray(attachments.taskId, ids));
+    await db.delete(tasks).where(eq(tasks.projectId, projectId));
+  }
+  await db.delete(tags).where(eq(tags.projectId, projectId));
+  await db.delete(projects).where(eq(projects.id, projectId));
+  return { success: true };
 }
