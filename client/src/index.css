@@ -54,28 +54,29 @@
   --chart-4: oklch(0.70 0.03 0);
   --chart-5: oklch(0.68 0.035 0);
   --radius: 0.6rem;
-  --background: oklch(0.97 0.003 0);
+  /* PMS 配色:純白頁面/卡片、淡灰欄底(gray-50)、明顯灰邊框(gray-200) */
+  --background: #ffffff;
   --foreground: oklch(0.35 0.01 0);
-  --card: oklch(0.98 0.002 0);
+  --card: #ffffff;
   --card-foreground: oklch(0.35 0.01 0);
-  --popover: oklch(0.98 0.002 0);
+  --popover: #ffffff;
   --popover-foreground: oklch(0.35 0.01 0);
-  --secondary: oklch(0.94 0.005 0);
+  --secondary: #f3f4f6;
   --secondary-foreground: oklch(0.45 0.01 0);
-  --muted: oklch(0.91 0.008 0);
+  --muted: #f9fafb;
   --muted-foreground: oklch(0.60 0.01 0);
   --accent: oklch(0.75 0.02 0);
   --accent-foreground: oklch(0.98 0.001 0);
   --destructive: oklch(0.62 0.18 30);
   --destructive-foreground: oklch(0.98 0.001 0);
-  --border: oklch(0.89 0.005 0);
-  --input: oklch(0.94 0.005 0);
+  --border: #e5e7eb;
+  --input: #ffffff;
   --ring: oklch(0.75 0.02 0);
-  --sidebar: oklch(0.98 0.002 0);
+  --sidebar: #ffffff;
   --sidebar-foreground: oklch(0.35 0.01 0);
-  --sidebar-accent: oklch(0.91 0.008 0);
+  --sidebar-accent: #f3f4f6;
   --sidebar-accent-foreground: oklch(0.35 0.01 0);
-  --sidebar-border: oklch(0.89 0.005 0);
+  --sidebar-border: #e5e7eb;
   --sidebar-ring: oklch(0.75 0.02 0);
 }
 
