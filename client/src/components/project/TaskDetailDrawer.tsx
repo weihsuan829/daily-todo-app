@@ -6,6 +6,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import type { Task } from "../../../../drizzle/schema";
 import TagChips, { type TagLike } from "./TagChips";
 import TagPicker from "./TagPicker";
+import ColorPicker from "./ColorPicker";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -166,12 +167,6 @@ export default function TaskDetailDrawer({
     const s = e.target.value;
     setDueDateStr(s);
     update.mutate({ id: taskId, dueDate: inputToDate(s) });
-  }
-
-  function handleColorChange(e: ChangeEvent<HTMLInputElement>) {
-    const c = e.target.value;
-    setColor(c);
-    update.mutate({ id: taskId, color: c });
   }
 
   function handleDescriptionBlur() {
@@ -337,34 +332,16 @@ export default function TaskDetailDrawer({
           {/* ── 5. Color ── */}
           <div className="flex items-center gap-2">
             <label className="text-xs text-muted-foreground shrink-0">顏色</label>
-            <div className="relative">
-              <span
-                className="w-5 h-5 rounded-full border border-border inline-block"
-                style={{ backgroundColor: color || "#e2e8f0" }}
-              />
-              <input
-                type="color"
-                value={color || "#e2e8f0"}
-                onChange={handleColorChange}
-                className="absolute inset-0 opacity-0 cursor-pointer w-5 h-5"
-                title="選擇顏色"
-              />
-            </div>
+            <ColorPicker
+              value={color || null}
+              onChange={(c) => {
+                setColor(c ?? "");
+                update.mutate({ id: taskId, color: c });
+              }}
+            />
             <span className="text-xs text-muted-foreground font-mono">
               {color || "（未設定）"}
             </span>
-            {color && (
-              <button
-                onClick={() => {
-                  setColor("");
-                  update.mutate({ id: taskId, color: null });
-                }}
-                className="text-xs text-muted-foreground hover:text-foreground ml-1"
-                title="清除顏色"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
           </div>
 
           {/* ── 6. Tags ── */}
