@@ -115,3 +115,6 @@ client/public/__manus__/version.json
 
 # User-uploaded files (local disk storage)
 uploads/
+
+# Superpowers visual companion mockups (local only)
+.superpowers/
