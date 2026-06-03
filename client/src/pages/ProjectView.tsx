@@ -113,6 +113,18 @@ export default function ProjectView() {
     return [...survivingRoots, ...subtasks];
   }, [tasks, survivingRoots, survivingRootIds]);
 
+  // The Calendar is a schedule view — it always shows done/archived tasks
+  // (the "Hiding done" toggle does not hide them here), while still honoring
+  // every other filter (priority/tag/assignee/only-me) and the sort.
+  const calendarTasks = useMemo(() => {
+    const roots = applyFilterSort(rootTasks, { ...filterState, closed: true }, filterCtx);
+    const rootIds = new Set(roots.map((t) => t.id));
+    const subtasks = tasks.filter(
+      (t) => t.parentTaskId != null && rootIds.has(t.parentTaskId)
+    );
+    return [...roots, ...subtasks];
+  }, [tasks, rootTasks, filterState, filterCtx]);
+
   if (!project)
     return (
       <div className="p-8 text-muted-foreground">
@@ -187,7 +199,7 @@ export default function ProjectView() {
             {view === "calendar" && (
               <ProjectCalendarView
                 projectId={projectId}
-                tasks={filteredTasks}
+                tasks={calendarTasks}
                 filterState={filterState}
                 tagsById={tagsById}
                 tagIdsByTask={tagIdsByTask}
