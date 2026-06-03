@@ -308,7 +308,7 @@ export default function DatePicker({
   disabled = false,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
-  const [field, setField] = useState<DateField>("due");
+  const [field, setField] = useState<DateField>("start");
   const [showRecur, setShowRecur] = useState(false);
 
   const startISO = dateToISO(startDate);
@@ -323,11 +323,11 @@ export default function DatePicker({
   const today = useMemo(() => new Date(), []);
   const presets = useMemo(() => buildPresets(today), [today]);
 
-  // When popover opens, reset month to the currently active field's date
+  // When the popover opens, default to the Start tab and show the start month.
   const handleOpenChange = (next: boolean) => {
     if (next) {
-      const ref = field === "due" ? dueDate : startDate;
-      const d = ref ?? today;
+      setField("start");
+      const d = startDate ?? today;
       setMonth(new Date(d.getFullYear(), d.getMonth(), 1));
       setShowRecur(false);
     }
@@ -339,11 +339,9 @@ export default function DatePicker({
       onChange({ startDate, dueDate: d, recurrenceRule });
     } else {
       onChange({ startDate: d, dueDate, recurrenceRule });
-      // After picking start, jump to due if due isn't set
-      if (!dueDate) {
-        setField("due");
-        setMonth(new Date(d.getFullYear(), d.getMonth(), 1));
-      }
+      // After picking the start date, auto-jump to the Due tab.
+      setField("due");
+      setMonth(new Date(d.getFullYear(), d.getMonth(), 1));
     }
   };
 
