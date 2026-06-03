@@ -235,6 +235,13 @@ function SortableTaskRow({
             {isSubtask && (
               <span className="text-muted-foreground/50 text-xs flex-shrink-0">↳</span>
             )}
+            {/* task color dot */}
+            {task.color && (
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: task.color }}
+              />
+            )}
             {isEditingTitle ? (
               <input
                 autoFocus

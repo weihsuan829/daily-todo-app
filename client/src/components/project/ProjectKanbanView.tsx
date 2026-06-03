@@ -102,6 +102,7 @@ function SortableCard({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.3 : 1,
+    ...(task.color ? { borderLeft: `3px solid ${task.color}` } : {}),
   };
 
   const effDates = getEffectiveDates(task, subtasks);

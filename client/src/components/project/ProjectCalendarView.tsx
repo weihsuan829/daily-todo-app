@@ -223,7 +223,7 @@ function TaskBar({
   const continuesLeft = effectiveStart < weekStart;
   const continuesRight = effectiveEnd > weekEnd;
 
-  const color = priorityColor(span.task.priority);
+  const color = span.task.color || priorityColor(span.task.priority);
   const bg = color + "2e"; // ~18% opacity hex
   const isDone = span.task.status === "done";
 
@@ -658,7 +658,7 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
             </div>
             <div className="flex flex-wrap gap-1">
               {noDueTasks.map((t) => {
-                const color = priorityColor(t.priority);
+                const color = t.color || priorityColor(t.priority);
                 return (
                   <span
                     key={t.id}
