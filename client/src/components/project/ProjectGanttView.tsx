@@ -195,6 +195,7 @@ function GanttBar({
         e.stopPropagation();
         onBarClick();
       }}
+      onDoubleClick={(e) => e.stopPropagation()}
     >
       {/* Left resize handle */}
       <div
@@ -1044,6 +1045,46 @@ export default function ProjectGanttView({
                   rowIndex={0}
                 />
               )}
+
+              {/* Double-click tracks — one per task row, for dateless leaf tasks */}
+              {visibleRows.map((row, i) => {
+                const rowIndex = 1 + i;
+                // Only leaf tasks (no children) without dates get the dblclick-to-create handler
+                const children = subtasksByParent.get(row.task.id) ?? [];
+                const hasChildren = children.length > 0;
+                if (row.hasDates || hasChildren) return null;
+
+                return (
+                  <div
+                    key={`track-${row.task.id}`}
+                    style={{
+                      position: "absolute",
+                      top: rowIndex * ROW_HEIGHT,
+                      left: 0,
+                      right: 0,
+                      height: ROW_HEIGHT,
+                      zIndex: 5,
+                      cursor: "crosshair",
+                    }}
+                    title="Double-click to set a 1-day bar"
+                    onDoubleClick={(e) => {
+                      const el = timelineRef.current;
+                      if (!el) return;
+                      const trackLeft = el.getBoundingClientRect().left;
+                      const scrollLeft = el.scrollLeft;
+                      const dayIndex = Math.floor(
+                        (e.clientX - trackLeft + scrollLeft) / effectiveDayWidth
+                      );
+                      const clickedDay = toMidnight(addDays(windowStart, dayIndex));
+                      updateTask.mutate({
+                        id: row.task.id,
+                        startDate: clickedDay,
+                        dueDate: clickedDay,
+                      });
+                    }}
+                  />
+                );
+              })}
 
               {/* Task bars — same visibleRows list as left panel for alignment */}
               {visibleRows.map((row, i) => {
