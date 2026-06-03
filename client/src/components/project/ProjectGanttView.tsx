@@ -102,6 +102,15 @@ interface HeaderCell {
   isWeekend?: boolean;
 }
 
+// ─── Visible row type ─────────────────────────────────────────────────────────
+interface VisibleRow {
+  task: Task;
+  isSubtask: boolean;
+  effectiveStart: Date | null;
+  effectiveEnd: Date | null;
+  hasDates: boolean;
+}
+
 // ─── GanttBar ──────────────────────────────────────────────────────────────────
 interface GanttBarProps {
   task: Task;
@@ -113,6 +122,7 @@ interface GanttBarProps {
   dragState: DragState | null;
   onDragStart: (task: Task, kind: DragKind, e: React.PointerEvent) => void;
   onBarClick: () => void;
+  isSubtask?: boolean;
 }
 
 function GanttBar({
@@ -125,6 +135,7 @@ function GanttBar({
   dragState,
   onDragStart,
   onBarClick,
+  isSubtask,
 }: GanttBarProps) {
   const isThisDragging = dragState?.taskId === task.id;
 
@@ -163,7 +174,7 @@ function GanttBar({
         top,
         width: Math.max(width, 4),
         height: barHeight,
-        backgroundColor: withOpacity(color, 0.22),
+        backgroundColor: withOpacity(color, isSubtask ? 0.18 : 0.22),
         borderColor: color,
         zIndex: isThisDragging ? 20 : 10,
       }}
@@ -305,6 +316,7 @@ export default function ProjectGanttView({
     return "day";
   });
 
+  // Project-level collapse (hides all task rows)
   const [collapsed, setCollapsed] = useState(false);
   const [autoFitDayWidth, setAutoFitDayWidth] = useState(36);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -314,6 +326,32 @@ export default function ProjectGanttView({
     try { localStorage.setItem(`gantt_zoom_${projectId}`, zoom); } catch {}
   }, [zoom, projectId]);
 
+  // ── Per-task collapse state — shared key with List view ────────────────────
+  const [collapsedTasks, setCollapsedTasks] = useState<Set<number>>(() => {
+    try {
+      const raw = localStorage.getItem(`listTaskCollapsed_${projectId}`);
+      if (!raw) return new Set();
+      return new Set<number>(JSON.parse(raw));
+    } catch {
+      return new Set();
+    }
+  });
+
+  const toggleTaskCollapse = useCallback((taskId: number) => {
+    setCollapsedTasks((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      try {
+        localStorage.setItem(
+          `listTaskCollapsed_${projectId}`,
+          JSON.stringify(Array.from(next))
+        );
+      } catch {}
+      return next;
+    });
+  }, [projectId]);
+
   // ── Dates ─────────────────────────────────────────────────────────────────
   const today = useMemo(() => {
     const d = new Date();
@@ -321,7 +359,7 @@ export default function ProjectGanttView({
     return d;
   }, []);
 
-  // Root tasks only for left panel + bars
+  // Root tasks only
   const rootTasks = useMemo(
     () => tasks.filter((t) => t.parentTaskId == null),
     [tasks]
@@ -340,52 +378,101 @@ export default function ProjectGanttView({
     return map;
   }, [tasks]);
 
-  // Effective span per root task
-  interface TaskSpan {
-    task: Task;
-    start: Date | null;
-    end: Date | null;
-    hasDates: boolean;
+  // Compute span for a task given its children
+  function computeSpan(task: Task, children: Task[]): { start: Date | null; end: Date | null; hasDates: boolean } {
+    const { startDate, dueDate } = getEffectiveDates(task, children);
+    if (!startDate && !dueDate) return { start: null, end: null, hasDates: false };
+
+    let start: Date;
+    let end: Date;
+    if (startDate && dueDate) {
+      start = toMidnight(startDate);
+      end = toMidnight(dueDate);
+      if (end < start) { const tmp = start; start = end; end = tmp; }
+    } else if (startDate) {
+      start = toMidnight(startDate);
+      end = start;
+    } else {
+      start = toMidnight(dueDate!);
+      end = start;
+    }
+    return { start, end, hasDates: true };
   }
 
-  const taskSpans = useMemo<TaskSpan[]>(() => {
-    return rootTasks.map((t) => {
-      const subtasks = subtasksByParent.get(t.id) ?? [];
-      const { startDate, dueDate } = getEffectiveDates(t, subtasks);
-      if (!startDate && !dueDate) return { task: t, start: null, end: null, hasDates: false };
+  // ── Build flat visible-row list (same array used for both panels) ──────────
+  const visibleRows = useMemo<VisibleRow[]>(() => {
+    if (collapsed) return [];
 
-      let start: Date;
-      let end: Date;
-      if (startDate && dueDate) {
-        start = toMidnight(startDate);
-        end = toMidnight(dueDate);
-        if (end < start) { const tmp = start; start = end; end = tmp; }
-      } else if (startDate) {
-        start = toMidnight(startDate);
-        end = start;
-      } else {
-        start = toMidnight(dueDate!);
-        end = start;
+    const rows: VisibleRow[] = [];
+    for (const root of rootTasks) {
+      const children = subtasksByParent.get(root.id) ?? [];
+      const span = computeSpan(root, children);
+      rows.push({
+        task: root,
+        isSubtask: false,
+        effectiveStart: span.start,
+        effectiveEnd: span.end,
+        hasDates: span.hasDates,
+      });
+
+      // If this parent has children and is NOT collapsed, add subtask rows
+      if (children.length > 0 && !collapsedTasks.has(root.id)) {
+        for (const sub of children) {
+          const subSpan = computeSpan(sub, []); // subtask uses its own dates
+          rows.push({
+            task: sub,
+            isSubtask: true,
+            effectiveStart: subSpan.start,
+            effectiveEnd: subSpan.end,
+            hasDates: subSpan.hasDates,
+          });
+        }
       }
-      return { task: t, start, end, hasDates: true };
+    }
+    return rows;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsed, rootTasks, subtasksByParent, collapsedTasks]);
+
+  // ── Summary counts ────────────────────────────────────────────────────────
+  // Count root tasks only (consistent with original behavior)
+  const rootSpans = useMemo(() => {
+    return rootTasks.map((t) => {
+      const children = subtasksByParent.get(t.id) ?? [];
+      return computeSpan(t, children);
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootTasks, subtasksByParent]);
 
-  const datedCount = taskSpans.filter((s) => s.hasDates).length;
-  const undatedCount = taskSpans.filter((s) => !s.hasDates).length;
+  const datedCount = rootSpans.filter((s) => s.hasDates).length;
+  const undatedCount = rootSpans.filter((s) => !s.hasDates).length;
 
-  // Window range
+  // Window range — based on ALL tasks with dates (roots + subtasks)
   const { windowStart, windowDays } = useMemo(() => {
-    const datedSpans = taskSpans.filter((s) => s.hasDates);
-    if (datedSpans.length === 0) {
+    const datedRows = visibleRows.filter((r) => r.hasDates);
+    // Also include undisplayed root spans for window calculation
+    const allDatedSpans = rootSpans.filter((s) => s.hasDates);
+
+    if (datedRows.length === 0 && allDatedSpans.length === 0) {
       const ws = addDays(today, -14);
       return { windowStart: ws, windowDays: 90 };
     }
+
     const allDates: Date[] = [];
-    for (const s of datedSpans) {
+    for (const s of allDatedSpans) {
       if (s.start) allDates.push(s.start);
       if (s.end) allDates.push(s.end);
     }
+    // Also include visible subtask dates for better window fit
+    for (const r of datedRows) {
+      if (r.effectiveStart) allDates.push(r.effectiveStart);
+      if (r.effectiveEnd) allDates.push(r.effectiveEnd);
+    }
+
+    if (allDates.length === 0) {
+      const ws = addDays(today, -14);
+      return { windowStart: ws, windowDays: 90 };
+    }
+
     const minDate = allDates.reduce((a, b) => (a < b ? a : b));
     const maxDate = allDates.reduce((a, b) => (a > b ? a : b));
     const ws = addDays(minDate < today ? minDate : today, -7);
@@ -394,11 +481,11 @@ export default function ProjectGanttView({
       windowStart: ws,
       windowDays: Math.max(90, differenceInDays(we, ws) + 1),
     };
-  }, [taskSpans, today]);
+  }, [rootSpans, visibleRows, today]);
 
-  // Project aggregate bar span
+  // Project aggregate bar span (based on root tasks)
   const aggregateSpan = useMemo(() => {
-    const datedSpans = taskSpans.filter((s) => s.hasDates);
+    const datedSpans = rootSpans.filter((s) => s.hasDates);
     if (datedSpans.length === 0) return null;
     const starts = datedSpans.map((s) => s.start!);
     const ends = datedSpans.map((s) => s.end!);
@@ -406,7 +493,7 @@ export default function ProjectGanttView({
       minStart: starts.reduce((a, b) => (a < b ? a : b)),
       maxEnd: ends.reduce((a, b) => (a > b ? a : b)),
     };
-  }, [taskSpans]);
+  }, [rootSpans]);
 
   // dayWidth
   const effectiveDayWidth = zoom === "auto" ? autoFitDayWidth : DAY_WIDTH_MAP[zoom];
@@ -545,8 +632,9 @@ export default function ProjectGanttView({
   const handleDragStart = useCallback(
     (task: Task, kind: DragKind, e: React.PointerEvent) => {
       e.preventDefault();
-      const subtasks = subtasksByParent.get(task.id) ?? [];
-      const { startDate, dueDate } = getEffectiveDates(task, subtasks);
+      // For drag, always use the task's OWN dates (not aggregated)
+      // so dragging a subtask moves its own dates, dragging a parent moves its own
+      const { startDate, dueDate } = getEffectiveDates(task, undefined);
 
       let origStart: Date;
       let origEnd: Date;
@@ -616,12 +704,12 @@ export default function ProjectGanttView({
       document.addEventListener("pointermove", handlePointerMove);
       document.addEventListener("pointerup", handlePointerUp);
     },
-    [effectiveDayWidth, subtasksByParent, updateTask]
+    [effectiveDayWidth, updateTask]
   );
 
   // ── Rows to render ─────────────────────────────────────────────────────────
-  // 1 header row for project aggregate + N task rows
-  const totalRows = 1 + (collapsed ? 0 : taskSpans.length);
+  // 1 header row for project aggregate + N visible task rows
+  const totalRows = 1 + visibleRows.length;
 
   return (
     <div className="h-full flex flex-col bg-background overflow-hidden">
@@ -670,7 +758,7 @@ export default function ProjectGanttView({
             Task
           </div>
 
-          {/* Left scrollable rows (syncs scroll with right) */}
+          {/* Left scrollable rows */}
           <div className="flex-1 overflow-hidden">
             {/* Project header row */}
             <button
@@ -693,27 +781,84 @@ export default function ProjectGanttView({
               <span className="text-xs text-muted-foreground ml-1">{rootTasks.length}</span>
             </button>
 
-            {/* Task rows */}
-            {!collapsed &&
-              taskSpans.map((s) => (
+            {/* Task rows — driven by same visibleRows list as right panel */}
+            {visibleRows.map((row) => {
+              const children = subtasksByParent.get(row.task.id) ?? [];
+              const hasChildren = children.length > 0;
+              const isCollapsedTask = collapsedTasks.has(row.task.id);
+
+              if (row.isSubtask) {
+                // Subtask row: indented with ↳
+                return (
+                  <div
+                    key={`sub-${row.task.id}`}
+                    style={{ height: ROW_HEIGHT }}
+                    className="flex items-center gap-1 pl-5 pr-2 border-b border-border/60 cursor-pointer hover:bg-muted/30 overflow-hidden"
+                    onClick={() => onOpenTask?.(row.task.id)}
+                    title={row.task.title}
+                  >
+                    <span className="text-muted-foreground/50 text-xs flex-shrink-0">↳</span>
+                    <PriorityFlag value={row.task.priority} size={10} className="flex-shrink-0" />
+                    <span
+                      className={`text-sm truncate flex-1 min-w-0 ${
+                        row.task.status === "done"
+                          ? "line-through text-muted-foreground"
+                          : "text-foreground"
+                      }`}
+                    >
+                      {row.task.title}
+                    </span>
+                    {!row.hasDates && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: "#fbbf24" }}
+                        title="No dates"
+                      />
+                    )}
+                  </div>
+                );
+              }
+
+              // Root task row
+              return (
                 <div
-                  key={s.task.id}
+                  key={`root-${row.task.id}`}
                   style={{ height: ROW_HEIGHT }}
-                  className="flex items-center gap-1.5 px-3 border-b border-border/60 cursor-pointer hover:bg-muted/30 overflow-hidden"
-                  onClick={() => onOpenTask?.(s.task.id)}
-                  title={s.task.title}
+                  className="flex items-center gap-1.5 px-2 border-b border-border/60 cursor-pointer hover:bg-muted/30 overflow-hidden"
+                  onClick={() => onOpenTask?.(row.task.id)}
+                  title={row.task.title}
                 >
-                  <PriorityFlag value={s.task.priority} size={11} className="flex-shrink-0" />
+                  {/* Chevron for parents with children */}
+                  {hasChildren ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleTaskCollapse(row.task.id);
+                      }}
+                      className="p-0.5 text-muted-foreground hover:text-foreground flex-shrink-0 -ml-0.5"
+                      title={isCollapsedTask ? "Expand subtasks" : "Collapse subtasks"}
+                    >
+                      {isCollapsedTask ? (
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  ) : (
+                    // Spacer to keep alignment consistent
+                    <span className="w-4 flex-shrink-0" />
+                  )}
+                  <PriorityFlag value={row.task.priority} size={11} className="flex-shrink-0" />
                   <span
                     className={`text-sm truncate flex-1 min-w-0 ${
-                      s.task.status === "done"
+                      row.task.status === "done"
                         ? "line-through text-muted-foreground"
                         : "text-foreground"
                     }`}
                   >
-                    {s.task.title}
+                    {row.task.title}
                   </span>
-                  {!s.hasDates && (
+                  {!row.hasDates && (
                     <span
                       className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                       style={{ backgroundColor: "#fbbf24" }}
@@ -721,7 +866,8 @@ export default function ProjectGanttView({
                     />
                   )}
                 </div>
-              ))}
+              );
+            })}
           </div>
         </div>
 
@@ -899,33 +1045,33 @@ export default function ProjectGanttView({
                 />
               )}
 
-              {/* Task bars */}
-              {!collapsed &&
-                taskSpans.map((s, i) => {
-                  const rowIndex = 1 + i; // offset by 1 for the header row
-                  if (!s.hasDates || !s.start || !s.end) {
-                    return null; // no bar for undated tasks
-                  }
-                  return (
-                    <GanttBar
-                      key={s.task.id}
-                      task={s.task}
-                      effectiveStart={s.start}
-                      effectiveEnd={s.end}
-                      windowStart={windowStart}
-                      dayWidth={effectiveDayWidth}
-                      rowIndex={rowIndex}
-                      dragState={dragState}
-                      onDragStart={handleDragStart}
-                      onBarClick={() => {
-                        if (!dragMovedRef.current) {
-                          onOpenTask?.(s.task.id);
-                        }
-                        dragMovedRef.current = false;
-                      }}
-                    />
-                  );
-                })}
+              {/* Task bars — same visibleRows list as left panel for alignment */}
+              {visibleRows.map((row, i) => {
+                const rowIndex = 1 + i; // offset by 1 for the project header row
+                if (!row.hasDates || !row.effectiveStart || !row.effectiveEnd) {
+                  return null; // no bar for undated tasks
+                }
+                return (
+                  <GanttBar
+                    key={`bar-${row.task.id}-${row.isSubtask ? "sub" : "root"}`}
+                    task={row.task}
+                    effectiveStart={row.effectiveStart}
+                    effectiveEnd={row.effectiveEnd}
+                    windowStart={windowStart}
+                    dayWidth={effectiveDayWidth}
+                    rowIndex={rowIndex}
+                    dragState={dragState}
+                    onDragStart={handleDragStart}
+                    onBarClick={() => {
+                      if (!dragMovedRef.current) {
+                        onOpenTask?.(row.task.id);
+                      }
+                      dragMovedRef.current = false;
+                    }}
+                    isSubtask={row.isSubtask}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
