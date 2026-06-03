@@ -125,6 +125,10 @@ export const appRouter = router({
       .input(z.object({ projectId: z.number(), orderedIds: z.array(z.number()) }))
       .mutation(async ({ ctx, input }) => reorderProjectTasks(ctx.user.id, input.orderedIds)),
 
+    reorderDay: protectedProcedure
+      .input(z.object({ orderedIds: z.array(z.number()) }))
+      .mutation(async ({ ctx, input }) => reorderProjectTasks(ctx.user.id, input.orderedIds)),
+
     setTags: protectedProcedure.input(z.object({ id: z.number(), tagIds: z.array(z.number()) }))
       .mutation(async ({ ctx, input }) => setTaskTags(ctx.user.id, input.id, input.tagIds)),
     bulkUpdate: protectedProcedure.input(z.object({ ids: z.array(z.number()), status: z.enum(["todo","in_progress","done","archived"]).optional(), priority: z.enum(["low","medium","high","urgent"]).optional() }))

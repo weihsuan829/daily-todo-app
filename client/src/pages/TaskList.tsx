@@ -14,8 +14,67 @@ import { Banner } from "@/components/Banner";
 import { TaskNotesModal } from "@/components/TaskNotesModal";
 import { EisenhowerMatrix } from "./EisenhowerMatrix";
 import ProjectSidebarSection from "@/components/project/ProjectSidebarSection";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 
 type Category = "work" | "life" | "eisenhower";
+
+// Sortable wrapper for a single task card
+function SortableTaskCardWrapper({
+  task,
+  children,
+}: {
+  task: { id: number; isRecurring?: boolean };
+  children: React.ReactNode;
+}) {
+  const disabled = !!(task.isRecurring || task.id < 0);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    disabled,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    cursor: disabled ? "default" : "grab",
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...(disabled ? {} : { ...attributes, ...listeners })}>
+      {children}
+    </div>
+  );
+}
+
+// Droppable day column wrapper
+function DroppableDayColumn({ dayName, children }: { dayName: string; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `day-${dayName}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`space-y-1 flex-1 min-h-[40px] rounded transition-colors ${isOver ? "bg-blue-100/10" : ""}`}
+    >
+      {children}
+    </div>
+  );
+}
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
@@ -39,6 +98,7 @@ export default function TaskList() {
   const [selectedTaskForNotes, setSelectedTaskForNotes] = useState<any>(null);
   const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
   const weekContainerRef = useRef<HTMLDivElement>(null);
+  const [dragActiveId, setDragActiveId] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -122,6 +182,18 @@ export default function TaskList() {
       utils.tasks.list.invalidate({ category: activeCategory });
       console.error('Move task error:', error);
       toast.error('移動任務失敗');
+    },
+  });
+
+  // Drag-and-drop: reorder within the same day
+  const reorderDayMutation = trpc.tasks.reorderDay.useMutation({
+    onSuccess: () => {
+      utils.tasks.list.invalidate({ category: activeCategory });
+    },
+    onError: (error) => {
+      utils.tasks.list.invalidate({ category: activeCategory });
+      console.error('Reorder error:', error);
+      toast.error('排序失敗');
     },
   });
 
@@ -220,14 +292,10 @@ export default function TaskList() {
     }));
   };
 
-  // 按優先級排序任務
+  // Sort tasks by order only (manual order wins so drag-reorder sticks visually).
+  // Priority is still shown on the card badge but does not affect position.
   const sortedTasks = useMemo(() => {
-    const priorityOrder = { high: 0, medium: 1, low: 2 };
-    return [...tasks].sort((a, b) => {
-      const priorityDiff = priorityOrder[a.priority as keyof typeof priorityOrder] - priorityOrder[b.priority as keyof typeof priorityOrder];
-      if (priorityDiff !== 0) return priorityDiff;
-      return a.order - b.order;
-    });
+    return [...tasks].sort((a, b) => a.order - b.order);
   }, [tasks]);
 
   // 按日期分組任務
@@ -273,6 +341,106 @@ export default function TaskList() {
     const day = String(date.getDate()).padStart(2, '0');
     return `${month}/${day}`;
   };
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  // Helper: find which day a task belongs to (based on current tasksByDay grouping)
+  const findDayOfTask = (taskId: number): string | null => {
+    for (const day of DAYS_OF_WEEK) {
+      if (tasksByDay[day]?.some((t) => t.id === taskId)) return day;
+    }
+    return null;
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setDragActiveId(event.active.id as number);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setDragActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as number;
+
+    // Recurring virtual instances use negative ids and are generated from a
+    // rule — they are never movable (cross-day OR reorder). Hard bail first.
+    if (activeId < 0) return;
+
+    const activeTask = tasks.find((t) => t.id === activeId);
+    if (!activeTask) return;
+    const isVirtual = !!(activeTask.isRecurring || activeId < 0);
+
+    const activeDay = findDayOfTask(activeId);
+    if (!activeDay) return;
+
+    // Determine target day
+    let targetDay: string | null = null;
+    const overId = over.id as string | number;
+
+    if (typeof overId === "string" && overId.startsWith("day-")) {
+      // Dropped directly on a droppable day zone
+      targetDay = overId.replace("day-", "");
+    } else if (typeof overId === "number") {
+      // Dropped over another task — find which day that task belongs to
+      targetDay = findDayOfTask(overId);
+    }
+
+    if (!targetDay) return;
+
+    if (targetDay !== activeDay) {
+      // Cross-day move: update dueDate — block for virtual/recurring tasks
+      if (isVirtual) return;
+
+      const targetIndex = DAYS_OF_WEEK.indexOf(targetDay);
+      const d = new Date(weekStartDate);
+      d.setDate(d.getDate() + targetIndex);
+      d.setHours(0, 0, 0, 0);
+
+      updateTaskMutation.mutate(
+        { id: activeId, dueDate: d },
+        {
+          onSuccess: () => {
+            utils.tasks.list.invalidate({ category: activeCategory });
+          },
+        }
+      );
+    } else {
+      // Within-day reorder
+      const dayTasks = tasksByDay[activeDay] || [];
+      const realDayTasks = dayTasks.filter((t) => !t.isRecurring && t.id > 0);
+
+      const oldIndex = realDayTasks.findIndex((t) => t.id === activeId);
+      const newIndex = realDayTasks.findIndex((t) => t.id === (overId as number));
+
+      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return;
+
+      const reordered = arrayMove(realDayTasks, oldIndex, newIndex);
+      const orderedIds = reordered.map((t) => t.id);
+
+      // Optimistic update
+      utils.tasks.list.setData({ category: activeCategory }, (old) => {
+        if (!old) return old;
+        const taskMap = new Map(old.map((t) => [t.id, t]));
+        const updated = old.map((t) => {
+          const pos = orderedIds.indexOf(t.id);
+          if (pos !== -1) {
+            return { ...t, order: pos };
+          }
+          return t;
+        });
+        return updated;
+      });
+
+      reorderDayMutation.mutate({ orderedIds });
+    }
+  };
+
+  // Find the dragged task for DragOverlay
+  const dragActiveTask = dragActiveId != null ? tasks.find((t) => t.id === dragActiveId) : null;
 
   return (
     <div className="min-h-screen bg-white dark:from-slate-950 dark:to-slate-900 relative overflow-hidden">
@@ -438,9 +606,19 @@ export default function TaskList() {
                   <EisenhowerMatrix selectedDate={weekStartDate} onDateChange={() => {}} />
                 </div>
               ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
               <div ref={weekContainerRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
                 <AnimatePresence mode="wait">
-                  {DAYS_OF_WEEK.map((day) => (
+                  {DAYS_OF_WEEK.map((day) => {
+                    const dayTaskIds = (tasksByDay[day] || [])
+                      .filter((t) => !t.isRecurring && t.id > 0)
+                      .map((t) => t.id);
+                    return (
                     <motion.div
                       key={day}
                       initial={{ opacity: 0, y: 20 }}
@@ -487,43 +665,46 @@ export default function TaskList() {
                         )}
 
                         {/* 任務列表 */}
-                        <div className="space-y-1 flex-1">
-                          {tasksByDay[day] && tasksByDay[day].length === 0 ? (
-                            !inputStates[day]?.isOpen && (
-                              <p className="text-xs text-muted-foreground text-center py-4">暂無任務</p>
-                            )
-                          ) : (
-                            tasksByDay[day]?.map((task, index) => {
-                              const tasksInDay = tasksByDay[day] || [];
-                              const canMoveUp = index > 0;
-                              const canMoveDown = index < tasksInDay.length - 1;
-                              return (
-                                <InteractiveTaskCard
-                                  key={task.id}
-                                  task={task}
-                                  onToggle={toggleTaskComplete}
-                                  onDelete={() => deleteTaskMutation.mutate({ id: task.id, dueDate: task.dueDate })}
-                                  onUpdateTitle={(taskId, newTitle) => {
-                                    if (!task.isRecurring) {
-                                      updateTaskMutation.mutate({
-                                        id: taskId,
-                                        title: newTitle,
-                                      });
-                                    }
-                                  }}
-                                  onOpenNotes={(taskData) => {
-                                    setSelectedTaskForNotes(taskData);
-                                    setIsNotesModalOpen(true);
-                                  }}
-                                  onMoveUp={() => handleMoveTask(task.id, 'up', day)}
-                                  onMoveDown={() => handleMoveTask(task.id, 'down', day)}
-                                  canMoveUp={canMoveUp && !task.isRecurring}
-                                  canMoveDown={canMoveDown && !task.isRecurring}
-                                />
-                              );
-                            })
-                          )}
-                        </div>
+                        <SortableContext items={dayTaskIds} strategy={verticalListSortingStrategy}>
+                          <DroppableDayColumn dayName={day}>
+                            {tasksByDay[day] && tasksByDay[day].length === 0 ? (
+                              !inputStates[day]?.isOpen && (
+                                <p className="text-xs text-muted-foreground text-center py-4">暂無任務</p>
+                              )
+                            ) : (
+                              tasksByDay[day]?.map((task, index) => {
+                                const tasksInDay = tasksByDay[day] || [];
+                                const canMoveUp = index > 0;
+                                const canMoveDown = index < tasksInDay.length - 1;
+                                return (
+                                  <SortableTaskCardWrapper key={task.id} task={task}>
+                                    <InteractiveTaskCard
+                                      task={task}
+                                      onToggle={toggleTaskComplete}
+                                      onDelete={() => deleteTaskMutation.mutate({ id: task.id, dueDate: task.dueDate })}
+                                      onUpdateTitle={(taskId, newTitle) => {
+                                        if (!task.isRecurring) {
+                                          updateTaskMutation.mutate({
+                                            id: taskId,
+                                            title: newTitle,
+                                          });
+                                        }
+                                      }}
+                                      onOpenNotes={(taskData) => {
+                                        setSelectedTaskForNotes(taskData);
+                                        setIsNotesModalOpen(true);
+                                      }}
+                                      onMoveUp={() => handleMoveTask(task.id, 'up', day)}
+                                      onMoveDown={() => handleMoveTask(task.id, 'down', day)}
+                                      canMoveUp={canMoveUp && !task.isRecurring}
+                                      canMoveDown={canMoveDown && !task.isRecurring}
+                                    />
+                                  </SortableTaskCardWrapper>
+                                );
+                              })
+                            )}
+                          </DroppableDayColumn>
+                        </SortableContext>
 
                         {/* 按鈕 */}
                         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="mt-auto pt-2">
@@ -543,9 +724,23 @@ export default function TaskList() {
                         </motion.div>
                       </Card>
                     </motion.div>
-                  ))}
+                    );
+                  })}
                 </AnimatePresence>
               </div>
+              <DragOverlay>
+                {dragActiveTask ? (
+                  <div className="opacity-90 shadow-2xl">
+                    <InteractiveTaskCard
+                      task={dragActiveTask}
+                      onToggle={() => {}}
+                      onDelete={() => {}}
+                      onUpdateTitle={() => {}}
+                    />
+                  </div>
+                ) : null}
+              </DragOverlay>
+              </DndContext>
               )}
             </div>
           </div>
