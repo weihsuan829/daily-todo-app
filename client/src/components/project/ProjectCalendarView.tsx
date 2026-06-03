@@ -579,7 +579,9 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
               visibleLanes.length > 0
                 ? (visibleLanes.reduce((acc, l) => Math.max(acc, l.lane + 1), 0)) * (LANE_HEIGHT + LANE_GAP)
                 : 0;
-            const rowMinHeight = Math.max(110, 28 + barAreaHeight + 18);
+            const hasOverflow = Object.keys(overflowByDate).length > 0;
+            const moreRowHeight = hasOverflow ? LANE_HEIGHT : 0;
+            const rowMinHeight = Math.max(110, 28 + barAreaHeight + moreRowHeight + 12);
 
             return (
               <div
@@ -593,7 +595,6 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
                     const isCurrentMonth = isSameMonth(day, cursor);
                     const isToday = isSameDay(day, today);
                     const key = format(day, "yyyy-MM-dd");
-                    const overflow = overflowByDate[key] ?? 0;
 
                     return (
                       <DayCell
@@ -602,16 +603,7 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
                         isCurrentMonth={isCurrentMonth}
                         isToday={isToday}
                         onDoubleClick={handleDoubleClick}
-                      >
-                        {overflow > 0 && (
-                          <div
-                            className="absolute left-1.5 right-1.5 text-[10px] text-muted-foreground"
-                            style={{ bottom: 4 }}
-                          >
-                            +{overflow} more
-                          </div>
-                        )}
-                      </DayCell>
+                      />
                     );
                   })}
                 </div>
@@ -641,6 +633,26 @@ export default function ProjectCalendarView({ projectId, tasks, onOpenTask }: Pr
                             dragMovedRef.current = false;
                           }}
                         />
+                      </div>
+                    );
+                  })}
+
+                  {/* "+N more" overflow badges — placed just below the visible lanes */}
+                  {row.days.map((day, di) => {
+                    const key = format(day, "yyyy-MM-dd");
+                    const ov = overflowByDate[key] ?? 0;
+                    if (ov <= 0) return null;
+                    return (
+                      <div
+                        key={`more-${key}`}
+                        className="absolute text-[10px] text-muted-foreground px-1.5 truncate"
+                        style={{
+                          left: `${(di / 7) * 100}%`,
+                          width: `${(1 / 7) * 100}%`,
+                          top: barAreaHeight + 1,
+                        }}
+                      >
+                        +{ov} more
                       </div>
                     );
                   })}
