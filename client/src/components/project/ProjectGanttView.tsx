@@ -5,7 +5,7 @@ import {
   format,
   startOfWeek,
 } from "date-fns";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { PriorityFlag } from "./PriorityPicker";
 import { getEffectiveDates } from "@/lib/taskHierarchy";
@@ -298,6 +298,10 @@ export default function ProjectGanttView({
   const updateTask = trpc.tasks.update.useMutation({
     onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
   });
+  const createTask = trpc.tasks.create.useMutation({
+    onSuccess: () => utils.tasks.listByProject.invalidate({ projectId }),
+  });
+  const [newTitle, setNewTitle] = useState("");
 
   // Fetch project info for color + name
   const { data: projects = [] } = trpc.projects.list.useQuery();
@@ -866,6 +870,27 @@ export default function ProjectGanttView({
                 </div>
               );
             })}
+
+            {/* Inline add-task row */}
+            <form
+              style={{ height: ROW_HEIGHT }}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const t = newTitle.trim();
+                if (!t) return;
+                createTask.mutate({ title: t, projectId, category: null, status: "todo" });
+                setNewTitle("");
+              }}
+              className="flex items-center gap-1.5 px-2 border-b border-border/40"
+            >
+              <Plus className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              <input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="新增任務…"
+                className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground min-w-0"
+              />
+            </form>
           </div>
         </div>
 
