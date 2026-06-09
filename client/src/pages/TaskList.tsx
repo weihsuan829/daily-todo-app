@@ -3,9 +3,10 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Briefcase, Heart, Plus, BarChart3, LogOut, ChevronLeft, ChevronRight, Settings, LayoutGrid, Target, Grid3x3 } from "lucide-react";
+import { Briefcase, Heart, Plus, BarChart3, LogOut, ChevronLeft, ChevronRight, Settings, LayoutGrid, Target, Grid3x3, StickyNote } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { Link } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCursorTracker } from "@/hooks/useCursorTracker";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -516,6 +517,9 @@ export default function TaskList() {
                       <Grid3x3 className="w-4 h-4" />
                       Eisenhower Matrix
                     </button>
+                    <Link href="/notes" className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all text-muted-foreground hover:bg-white/10">
+                      <StickyNote className="w-4 h-4" /> Notes
+                    </Link>
                   </div>
                 </div>
 
