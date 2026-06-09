@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote } from "./db";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -146,6 +146,44 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => deleteTag(ctx.user.id, input.id)),
     taskMap: protectedProcedure.input(z.object({ projectId: z.number() }))
       .query(async ({ ctx, input }) => listTaskTags(ctx.user.id, input.projectId)),
+  }),
+
+  notes: router({
+    list: protectedProcedure.query(async ({ ctx }) => listNotes(ctx.user.id)),
+
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().max(255).optional(),
+        content: z.string().optional(),
+        color: z.string().max(20).optional(),
+        projectId: z.number().nullable().optional(),
+        tags: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => createNote(ctx.user.id, input)),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().max(255).optional(),
+        content: z.string().optional(),
+        color: z.string().max(20).nullable().optional(),
+        isPinned: z.boolean().optional(),
+        projectId: z.number().nullable().optional(),
+        tags: z.string().optional(),
+        order: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...u } = input;
+        return updateNote(ctx.user.id, id, u as never);
+      }),
+
+    reorder: protectedProcedure
+      .input(z.object({ orderedIds: z.array(z.number()) }))
+      .mutation(async ({ ctx, input }) => reorderNotes(ctx.user.id, input.orderedIds)),
+
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => deleteNote(ctx.user.id, input.id)),
   }),
 
   projects: router({
