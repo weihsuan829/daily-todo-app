@@ -1,7 +1,53 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useInlineRename } from "@/lib/useInlineRename";
+import type { Project } from "../../../drizzle/schema";
+
+function ProjectRow({ p }: { p: Project }) {
+  const utils = trpc.useUtils();
+  const update = trpc.projects.update.useMutation({
+    onSuccess: () => utils.projects.list.invalidate(),
+  });
+  const rename = useInlineRename(p.name, (name) =>
+    update.mutate({ id: p.id, name })
+  );
+
+  if (rename.editing) {
+    return (
+      <li>
+        <div className="flex items-center gap-2 p-3 rounded border border-border bg-card">
+          <span className="w-3 h-3 rounded-full" style={{ background: p.color }} />
+          <input
+            {...rename.inputProps}
+            className="flex-1 bg-background border border-ring rounded px-2 py-1 outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+      </li>
+    );
+  }
+
+  return (
+    <li className="group flex items-center gap-1">
+      <Link
+        href={`/projects/${p.id}`}
+        className="flex items-center gap-2 p-3 rounded border border-border bg-card hover:bg-accent flex-1 min-w-0"
+      >
+        <span className="w-3 h-3 rounded-full" style={{ background: p.color }} />
+        <span className="truncate">{p.name}</span>
+      </Link>
+      <button
+        onClick={rename.start}
+        className="opacity-0 group-hover:opacity-100 p-2 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-opacity"
+        aria-label={`重新命名專案「${p.name}」`}
+        title="重新命名"
+      >
+        <Pencil className="w-4 h-4" />
+      </button>
+    </li>
+  );
+}
 
 export default function Projects() {
   const utils = trpc.useUtils();
@@ -21,11 +67,7 @@ export default function Projects() {
       {isLoading ? <p>Loading…</p> : (
         <ul className="space-y-2">
           {projects.map((p) => (
-            <li key={p.id}>
-              <Link href={`/projects/${p.id}`} className="flex items-center gap-2 p-3 rounded border border-border bg-card hover:bg-accent">
-                <span className="w-3 h-3 rounded-full" style={{ background: p.color }} />{p.name}
-              </Link>
-            </li>
+            <ProjectRow key={p.id} p={p} />
           ))}
           {projects.length === 0 && <p className="text-muted-foreground">No projects yet.</p>}
         </ul>

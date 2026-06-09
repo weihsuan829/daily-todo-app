@@ -9,6 +9,7 @@ import ProjectGanttView from "@/components/project/ProjectGanttView";
 import TaskDetailDrawer from "@/components/project/TaskDetailDrawer";
 import { ProjectToolbar } from "@/components/project/ProjectToolbar";
 import type { TagLike } from "@/components/project/TagChips";
+import { useInlineRename } from "@/lib/useInlineRename";
 import {
   DEFAULT_FILTER_STATE,
   applyFilterSort,
@@ -32,6 +33,13 @@ export default function ProjectView() {
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const { data: projects = [] } = trpc.projects.list.useQuery();
   const project = projects.find((p) => p.id === projectId);
+  const utils = trpc.useUtils();
+  const renameProject = trpc.projects.update.useMutation({
+    onSuccess: () => utils.projects.list.invalidate(),
+  });
+  const rename = useInlineRename(project?.name ?? "", (name) =>
+    renameProject.mutate({ id: projectId, name })
+  );
   const { data: tasks = [], isLoading } = trpc.tasks.listByProject.useQuery({ projectId }, { enabled: Number.isFinite(projectId) });
 
   // ─── Filter state (persisted per project) ────────────────────────────────────
@@ -146,7 +154,20 @@ export default function ProjectView() {
             Back
           </Link>
           <span className="w-3 h-3 rounded-full" style={{ backgroundColor: project.color }} />
-          <h1 className="text-xl font-semibold">{project.name}</h1>
+          {rename.editing ? (
+            <input
+              {...rename.inputProps}
+              className="text-xl font-semibold bg-background border border-ring rounded px-1.5 py-0.5 outline-none focus:ring-2 focus:ring-ring min-w-[200px]"
+            />
+          ) : (
+            <h1
+              className="text-xl font-semibold cursor-pointer select-none"
+              title="雙擊以重新命名"
+              onDoubleClick={rename.start}
+            >
+              {project.name}
+            </h1>
+          )}
         </div>
         <div className="inline-flex bg-muted rounded-lg p-1 text-sm">
           {(["list","kanban","calendar","gantt"] as ViewMode[]).map((v) => {
