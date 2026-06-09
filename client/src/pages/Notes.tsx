@@ -11,6 +11,24 @@ import NoteCard from "@/components/notes/NoteCard";
 import NoteEditorModal from "@/components/notes/NoteEditorModal";
 import type { Note } from "../../../drizzle/schema";
 
+function NotesGrid({
+  items, projectName, onOpen,
+}: {
+  items: Note[];
+  projectName: (id: number | null) => string | undefined;
+  onOpen: (note: Note) => void;
+}) {
+  return (
+    <SortableContext items={items.map((n) => n.id)} strategy={rectSortingStrategy}>
+      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+        {items.map((n) => (
+          <NoteCard key={n.id} note={n} projectName={projectName(n.projectId)} onOpen={onOpen} />
+        ))}
+      </div>
+    </SortableContext>
+  );
+}
+
 export default function Notes() {
   const utils = trpc.useUtils();
   const { data: notes = [] } = trpc.notes.list.useQuery();
@@ -50,16 +68,6 @@ export default function Notes() {
 
   const openNote = notes.find((n) => n.id === openId) ?? null;
 
-  const Grid = ({ items }: { items: Note[] }) => (
-    <SortableContext items={items.map((n) => n.id)} strategy={rectSortingStrategy}>
-      <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
-        {items.map((n) => (
-          <NoteCard key={n.id} note={n} projectName={projectName(n.projectId)} onOpen={(nn) => setOpenId(nn.id)} />
-        ))}
-      </div>
-    </SortableContext>
-  );
-
   return (
     <div className="max-w-5xl mx-auto p-6 text-foreground">
       <Link href="/" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4">
@@ -94,14 +102,14 @@ export default function Notes() {
         <>
           <div className="text-xs text-muted-foreground mb-2">📌 釘選</div>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd(pinned)}>
-            <Grid items={pinned} />
+            <NotesGrid items={pinned} projectName={projectName} onOpen={(nn) => setOpenId(nn.id)} />
           </DndContext>
           <div className="h-5" />
         </>
       )}
 
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd(normal)}>
-        <Grid items={normal} />
+        <NotesGrid items={normal} projectName={projectName} onOpen={(nn) => setOpenId(nn.id)} />
       </DndContext>
 
       {filtered.length === 0 && <p className="text-muted-foreground mt-6">沒有筆記。按「新增筆記」開始。</p>}

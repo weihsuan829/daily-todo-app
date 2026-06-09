@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X, Pin, Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ColorPicker from "@/components/project/ColorPicker";
@@ -26,9 +26,11 @@ export default function NoteEditorModal({
   const [tagInput, setTagInput] = useState("");
   const [projectId, setProjectId] = useState<number | null>(note.projectId);
   const [isPinned, setIsPinned] = useState(note.isPinned);
+  const firstRun = useRef(true);
 
   // debounced autosave of title/content
   useEffect(() => {
+    if (firstRun.current) { firstRun.current = false; return; }
     const t = setTimeout(() => {
       update.mutate({ id: note.id, title, content });
     }, 300);

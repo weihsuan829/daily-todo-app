@@ -53,6 +53,7 @@ export function registerUploadRoutes(app: Express) {
       if (!file) { res.status(400).json({ error: "no file" }); return; }
       res.json({ url: `/uploads/${file.filename}` });
     } catch (e) {
+      if (req.file) { await unlink(req.file.path).catch(() => {}); }
       res.status(401).json({ error: "unauthorized", detail: String(e) });
     }
   });

@@ -1144,6 +1144,8 @@ export async function createNote(
 ) {
   const db = await getDb();
   if (!db) return null;
+  let projectId = input.projectId ?? null;
+  if (projectId != null && !(await userOwnsProject(db, userId, projectId))) projectId = null;
   const existing = await db.select({ order: notes.order }).from(notes).where(eq(notes.userId, userId));
   const order = existing.length > 0 ? Math.max(...existing.map((n) => n.order)) + 1 : 0;
   return db.insert(notes).values({
@@ -1151,7 +1153,7 @@ export async function createNote(
     title: input.title ?? "",
     content: input.content,
     color: input.color,
-    projectId: input.projectId ?? null,
+    projectId,
     tags: input.tags,
     order,
   });
@@ -1164,8 +1166,12 @@ export async function updateNote(
 ) {
   const db = await getDb();
   if (!db) return null;
+  const safeUpdates = { ...updates };
+  if (safeUpdates.projectId != null && !(await userOwnsProject(db, userId, safeUpdates.projectId))) {
+    safeUpdates.projectId = null;
+  }
   return db.update(notes)
-    .set({ ...updates, updatedAt: new Date() })
+    .set({ ...safeUpdates, updatedAt: new Date() })
     .where(and(eq(notes.id, noteId), eq(notes.userId, userId)));
 }
 
