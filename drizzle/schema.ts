@@ -56,6 +56,28 @@ export const tasks = mysqlTable("tasks", {
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
 
+/**
+ * Notes: card-based personal notes with rich text (HTML), optional pasted
+ * screenshots (image URLs embedded in content), tags (JSON string array),
+ * color, pin, optional project link, and drag-reorder order.
+ */
+export const notes = mysqlTable("notes", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }).notNull().default(""),
+  content: text("content"),
+  color: varchar("color", { length: 20 }),
+  isPinned: boolean("isPinned").default(false).notNull(),
+  projectId: int("projectId"),
+  tags: text("tags"), // JSON string array, e.g. ["購料","會議"]
+  order: int("order").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Note = typeof notes.$inferSelect;
+export type NewNote = typeof notes.$inferInsert;
+
 export const workspaces = mysqlTable("workspaces", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
