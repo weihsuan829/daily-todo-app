@@ -4,6 +4,17 @@ import { trpc } from "@/lib/trpc";
 import ColorPicker from "@/components/project/ColorPicker";
 import NoteEditor from "./NoteEditor";
 import { parseTags } from "@/lib/noteText";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import type { Note } from "../../../../drizzle/schema";
 
 export default function NoteEditorModal({
@@ -70,13 +81,33 @@ export default function NoteEditorModal({
           </button>
           <div className="flex items-center gap-2">
             <ColorPicker value={color} onChange={(c) => { setColor(c); save({ color: c }); }} />
-            <button
-              onClick={() => { if (confirm("刪除這則筆記?")) { del.mutate({ id: note.id }); onClose(); } }}
-              className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-              title="刪除"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                  title="刪除"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>刪除這則筆記?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    此動作會永久刪除這則筆記及其內容與貼上的圖片,且無法復原。
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>取消</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => { del.mutate({ id: note.id }); onClose(); }}
+                  >
+                    刪除
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <button onClick={onClose} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
               <X className="w-4 h-4" />
             </button>
