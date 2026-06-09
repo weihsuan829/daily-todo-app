@@ -1,6 +1,6 @@
 import { eq, and, asc, desc, isNull, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments } from "../drizzle/schema";
+import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
 
@@ -1127,6 +1127,69 @@ export async function createComment(userId: number, taskId: number, content: str
 export async function deleteComment(userId: number, id: number) {
   const db = await getDb(); if (!db) return null;
   return db.delete(comments).where(and(eq(comments.id, id), eq(comments.userId, userId)));
+}
+
+// ---- Notes ----
+export async function listNotes(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(notes)
+    .where(eq(notes.userId, userId))
+    .orderBy(desc(notes.isPinned), asc(notes.order), desc(notes.updatedAt));
+}
+
+export async function createNote(
+  userId: number,
+  input: { title?: string; content?: string; color?: string; projectId?: number | null; tags?: string }
+) {
+  const db = await getDb();
+  if (!db) return null;
+  let projectId = input.projectId ?? null;
+  if (projectId != null && !(await userOwnsProject(db, userId, projectId))) projectId = null;
+  const existing = await db.select({ order: notes.order }).from(notes).where(eq(notes.userId, userId));
+  const order = existing.length > 0 ? Math.max(...existing.map((n) => n.order)) + 1 : 0;
+  return db.insert(notes).values({
+    userId,
+    title: input.title ?? "",
+    content: input.content,
+    color: input.color,
+    projectId,
+    tags: input.tags,
+    order,
+  });
+}
+
+export async function updateNote(
+  userId: number,
+  noteId: number,
+  updates: Partial<Pick<Note, "title" | "content" | "color" | "isPinned" | "projectId" | "tags" | "order">>
+) {
+  const db = await getDb();
+  if (!db) return null;
+  const safeUpdates = { ...updates };
+  if (safeUpdates.projectId != null && !(await userOwnsProject(db, userId, safeUpdates.projectId))) {
+    safeUpdates.projectId = null;
+  }
+  return db.update(notes)
+    .set({ ...safeUpdates, updatedAt: new Date() })
+    .where(and(eq(notes.id, noteId), eq(notes.userId, userId)));
+}
+
+export async function reorderNotes(userId: number, orderedIds: number[]) {
+  const db = await getDb();
+  if (!db) return null;
+  for (let i = 0; i < orderedIds.length; i++) {
+    await db.update(notes)
+      .set({ order: i })
+      .where(and(eq(notes.id, orderedIds[i]), eq(notes.userId, userId)));
+  }
+  return { ok: true };
+}
+
+export async function deleteNote(userId: number, noteId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  return db.delete(notes).where(and(eq(notes.id, noteId), eq(notes.userId, userId)));
 }
 
 export async function deleteProject(userId: number, projectId: number) {

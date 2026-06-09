@@ -45,6 +45,19 @@ export function registerUploadRoutes(app: Express) {
     }
   });
 
+  // Generic image upload for the notes rich-text editor (not task-scoped)
+  app.post("/api/upload-image", upload.single("image"), async (req: Request, res: Response) => {
+    try {
+      await sdk.authenticateRequest(req);
+      const file = req.file;
+      if (!file) { res.status(400).json({ error: "no file" }); return; }
+      res.json({ url: `/uploads/${file.filename}` });
+    } catch (e) {
+      if (req.file) { await unlink(req.file.path).catch(() => {}); }
+      res.status(401).json({ error: "unauthorized", detail: String(e) });
+    }
+  });
+
   // Delete an attachment (also unlink the file)
   app.delete("/api/attachments/:id", async (req: Request, res: Response) => {
     try {
