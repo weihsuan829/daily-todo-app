@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Pin, Trash2 } from "lucide-react";
+import { X, Pin, Trash2, Save } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ColorPicker from "@/components/project/ColorPicker";
 import NoteEditor from "./NoteEditor";
 import { parseTags } from "@/lib/noteText";
+import { isNoteDirty } from "@/lib/noteDirty";
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -57,11 +58,34 @@ export default function NoteEditorModal({
 
   const flushAndClose = () => {
     const { title: t, content: c } = latest.current;
-    if (t !== note.title || c !== (note.content ?? "")) {
+    if (isNoteDirty(t, c, note)) {
       update.mutate({ id: note.id, title: t, content: c });
     }
     onClose();
   };
+
+  const dirty = isNoteDirty(title, content, note);
+
+  const saveNow = () => {
+    const { title: t, content: c } = latest.current;
+    if (isNoteDirty(t, c, note)) {
+      update.mutate({ id: note.id, title: t, content: c });
+    }
+  };
+
+  // Keep a stable ref so the Cmd/Ctrl+S listener always calls the latest save.
+  const saveRef = useRef(saveNow);
+  saveRef.current = saveNow;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        saveRef.current();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const save = (patch: { color?: string | null; isPinned?: boolean; projectId?: number | null; tags?: string }) =>
     update.mutate({ id: note.id, ...patch });
@@ -94,6 +118,17 @@ export default function NoteEditorModal({
             <Pin className="w-4 h-4" />
           </button>
           <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground mr-1 select-none">
+              {update.isPending ? "儲存中…" : dirty ? "未儲存" : "已儲存"}
+            </span>
+            <button
+              onClick={saveNow}
+              disabled={!dirty || update.isPending}
+              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-default"
+              title="儲存 (⌘S / Ctrl+S)"
+            >
+              <Save className="w-3.5 h-3.5" /> 儲存
+            </button>
             <ColorPicker value={color} onChange={(c) => { setColor(c); save({ color: c }); }} />
             <AlertDialog>
               <AlertDialogTrigger asChild>
