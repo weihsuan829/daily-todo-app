@@ -49,6 +49,20 @@ export default function NoteEditorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, content]);
 
+  // Always hold the latest edited title/content so closing can flush them.
+  // Closing unmounts the modal and the debounced autosave's cleanup would
+  // otherwise cancel a pending save (edit-then-close-fast → lost edit).
+  const latest = useRef({ title, content });
+  latest.current = { title, content };
+
+  const flushAndClose = () => {
+    const { title: t, content: c } = latest.current;
+    if (t !== note.title || c !== (note.content ?? "")) {
+      update.mutate({ id: note.id, title: t, content: c });
+    }
+    onClose();
+  };
+
   const save = (patch: { color?: string | null; isPinned?: boolean; projectId?: number | null; tags?: string }) =>
     update.mutate({ id: note.id, ...patch });
 
@@ -65,7 +79,7 @@ export default function NoteEditorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={flushAndClose}>
       <div
         className="bg-card rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] overflow-auto p-5"
         onClick={(e) => e.stopPropagation()}
@@ -108,7 +122,7 @@ export default function NoteEditorModal({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-            <button onClick={onClose} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
+            <button onClick={flushAndClose} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
               <X className="w-4 h-4" />
             </button>
           </div>
