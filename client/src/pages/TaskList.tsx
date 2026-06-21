@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo, useRef, useEffect } from "react";
-import { Briefcase, Heart, Plus, BarChart3, LogOut, ChevronLeft, ChevronRight, Settings, LayoutGrid, Target, Grid3x3, StickyNote } from "lucide-react";
+import { Briefcase, Heart, Plus, BarChart3, LogOut, ChevronLeft, ChevronRight, Settings, LayoutGrid, Target, Grid3x3, StickyNote, Brain } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { Link } from "wouter";
@@ -519,6 +519,9 @@ export default function TaskList() {
                     </button>
                     <Link href="/notes" className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all text-muted-foreground hover:bg-white/10">
                       <StickyNote className="w-4 h-4" /> Notes
+                    </Link>
+                    <Link href="/solve-problems" className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all text-muted-foreground hover:bg-white/10">
+                      <Brain className="w-4 h-4" /> Solve Problem
                     </Link>
                   </div>
                 </div>

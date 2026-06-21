@@ -9,6 +9,7 @@ import AnnualTracking from "@/pages/AnnualTracking";
 import Projects from "@/pages/Projects";
 import ProjectView from "@/pages/ProjectView";
 import Notes from "@/pages/Notes";
+import SolveProblem from "@/pages/SolveProblem";
 
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -25,6 +26,7 @@ function Router() {
       <Route path={"/projects"} component={Projects} />
       <Route path={"/projects/:id"} component={ProjectView} />
       <Route path={"/notes"} component={Notes} />
+      <Route path={"/solve-problems"} component={SolveProblem} />
 
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}
