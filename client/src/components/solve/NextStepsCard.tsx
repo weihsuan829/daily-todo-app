@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ListChecks, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +24,10 @@ export function NextStepsCard({ nextSteps }: { nextSteps: string[] }) {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <CardTitle className="text-base">🎯 下一步行動</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <ListChecks className="w-4 h-4 text-muted-foreground" />
+            下一步行動
+          </CardTitle>
           <div className="flex items-center gap-2">
             <select
               className="text-sm border border-border bg-input rounded px-2 py-1"
@@ -50,7 +54,9 @@ export function NextStepsCard({ nextSteps }: { nextSteps: string[] }) {
                 disabled={added.has(i) || create.isPending}
                 onClick={() => addOne(i)}
               >
-                {added.has(i) ? "✓ 已加入" : "加入任務"}
+                {added.has(i) ? (
+                  <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" />已加入</span>
+                ) : "加入任務"}
               </Button>
             </li>
           ))}
