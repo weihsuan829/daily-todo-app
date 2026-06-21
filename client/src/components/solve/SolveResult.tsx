@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "./Markdown";
@@ -66,6 +66,11 @@ export function SolveResult({
 
   const [localDiagram, setLocalDiagram] = useState(result.diagram);
   const [localDiagramType, setLocalDiagramType] = useState(result.diagramType);
+
+  useEffect(() => {
+    setLocalDiagram(result.diagram);
+    setLocalDiagramType(result.diagramType);
+  }, [result.diagram, result.diagramType]);
 
   return (
     <div className="space-y-6">
