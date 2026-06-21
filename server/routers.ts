@@ -480,6 +480,7 @@ export const appRouter = router({
           analysis: result.analysis,
           diagram: result.diagram,
           diagramType: result.diagramType,
+          nextSteps: JSON.stringify(result.nextSteps ?? []),
         });
         const id = (ins as any)?.[0]?.insertId ?? (ins as any)?.insertId ?? null;
         return { id, ...result };
