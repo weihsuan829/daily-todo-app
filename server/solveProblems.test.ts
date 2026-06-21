@@ -15,4 +15,14 @@ describe("solveProblems router", () => {
   it("analyze rejects empty problemText", async () => {
     await expect(appRouter.createCaller(ctx()).solveProblems.analyze({ problemText: "" })).rejects.toThrow();
   });
+  it("get returns solution and messages shape", async () => {
+    const r = await appRouter.createCaller(ctx()).solveProblems.get({ id: 999999 });
+    expect(r).toHaveProperty("solution");
+    expect(r).toHaveProperty("messages");
+    expect(Array.isArray(r.messages)).toBe(true);
+  });
+  it("discuss rejects empty message", async () => {
+    await expect(appRouter.createCaller(ctx()).solveProblems.discuss({ problemSolutionId: 1, message: "" }))
+      .rejects.toThrow();
+  });
 });

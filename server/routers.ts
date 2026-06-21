@@ -2,9 +2,9 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework, getFrameworkBySlug, listProblemSolutions, createProblemSolution, deleteProblemSolution } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework, getFrameworkBySlug, listProblemSolutions, createProblemSolution, deleteProblemSolution, getProblemSolution, listProblemMessages, createProblemMessage } from "./db";
 import { chat } from "./_core/openai";
-import { analyzeProblem } from "./solve-service";
+import { analyzeProblem, discussProblem } from "./solve-service";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -471,7 +471,7 @@ export const appRouter = router({
           getFrameworkBySlug,
           chat,
         });
-        await createProblemSolution({
+        const ins = await createProblemSolution({
           userId: ctx.user.id,
           problemText: input.problemText,
           chosenFrameworks: result.chosenFrameworks.join(","),
@@ -480,7 +480,31 @@ export const appRouter = router({
           diagram: result.diagram,
           diagramType: result.diagramType,
         });
-        return result;
+        const id = (ins as any)?.[0]?.insertId ?? (ins as any)?.insertId ?? null;
+        return { id, ...result };
+      }),
+    get: protectedProcedure.input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const solution = await getProblemSolution(input.id, ctx.user.id);
+        const messages = solution ? await listProblemMessages(input.id, ctx.user.id) : [];
+        return { solution, messages };
+      }),
+    discuss: protectedProcedure
+      .input(z.object({ problemSolutionId: z.number(), message: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        const solution = await getProblemSolution(input.problemSolutionId, ctx.user.id);
+        if (!solution) throw new Error("找不到該問題或無權限");
+        const history = await listProblemMessages(input.problemSolutionId, ctx.user.id);
+        await createProblemMessage({ problemSolutionId: input.problemSolutionId, userId: ctx.user.id, role: "user", content: input.message });
+        const reply = await discussProblem({
+          problemText: solution.problemText,
+          frameworksText: solution.chosenFrameworks ?? "",
+          analysis: solution.analysis ?? "",
+          history: history.map((m) => ({ role: m.role, content: m.content })),
+          message: input.message,
+        }, { chat });
+        await createProblemMessage({ problemSolutionId: input.problemSolutionId, userId: ctx.user.id, role: "assistant", content: reply });
+        return { reply };
       }),
   }),
 
