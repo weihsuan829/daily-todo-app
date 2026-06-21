@@ -13,7 +13,18 @@ export function MermaidDiagram({ code }: { code: string }) {
     const codeSuffix = Math.abs(code.split("").reduce((a, c) => a + c.charCodeAt(0), 0));
     const id = "m" + instanceId + codeSuffix;
     mermaid.render(id, code)
-      .then(({ svg }) => { if (!cancelled && ref.current) { ref.current.innerHTML = svg; setErr(null); } })
+      .then(({ svg }) => {
+        if (!cancelled && ref.current) {
+          ref.current.innerHTML = svg;
+          const el = ref.current.querySelector("svg");
+          if (el) {
+            el.style.maxWidth = "none";
+            el.style.width = "100%";
+            el.style.height = "auto";
+          }
+          setErr(null);
+        }
+      })
       .catch((e) => { if (!cancelled) setErr(String(e?.message ?? e)); });
     return () => { cancelled = true; };
   }, [code]);

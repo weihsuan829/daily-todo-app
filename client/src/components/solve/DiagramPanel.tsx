@@ -8,7 +8,7 @@ export function DiagramPanel({ code }: { code: string }) {
   return (
     <>
       <div
-        className="cursor-zoom-in overflow-auto"
+        className="cursor-zoom-in overflow-auto max-h-[40vh]"
         onClick={() => setOpen(true)}
         title="點擊放大"
         role="button"
