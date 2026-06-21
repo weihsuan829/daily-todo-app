@@ -37,8 +37,8 @@ export async function analyzeProblem(input: AnalyzeInput, deps: SolveDeps): Prom
 
   const solvePrompt =
     `使用者問題:「${input.problemText}」\n\n選用框架:\n${details}\n\n` +
-    `請依框架操作步驟逐步分析這個實際問題,並產出一張對應的圖(Mermaid 語法,依問題自選最合適的圖種:` +
-    `flowchart/決策樹用 flowchart、心智圖用 mindmap、流程用 flowchart 等)。\n` +
+    `請依框架操作步驟逐步分析這個實際問題,並產出一張對應的圖(Mermaid 語法,依問題自選最合適的圖種:\n` +
+    `flowchart(流程/決策樹/因果)、mindmap(發散整理)、quadrantChart(SWOT/2x2 四象限)、timeline(有時序)、sequenceDiagram(角色互動)。diagramType 填所選關鍵字)。\n` +
     `只回 JSON:{"analysis":"逐步分析(markdown)","diagram":"完整 Mermaid 語法","diagramType":"flowchart|mindmap|..."}`;
   const solved = parseJSON(await deps.chat(solvePrompt));
 
@@ -60,6 +60,28 @@ export interface DiscussInput {
 }
 export interface DiscussDeps {
   chat: (prompt: string, opts?: { model?: string; system?: string }) => Promise<string>;
+}
+
+const DIAGRAM_HINTS: Record<string, string> = {
+  flowchart: "flowchart TD(流程圖/決策樹,節點用 A[文字],箭頭 -->)",
+  mindmap: "mindmap(心智圖,根 root((中心)),縮排表階層)",
+  quadrantChart: "quadrantChart(四象限,需 x-axis/y-axis 與各象限標題,適合 SWOT/2x2)",
+  timeline: "timeline(時間軸,title 後每列 '時期 : 事件')",
+  sequenceDiagram: "sequenceDiagram(循序圖,participant 與 A->>B: 訊息)",
+};
+
+export interface RegenDiagramInput { problemText: string; frameworksText: string; analysis: string; diagramType: string; }
+export interface RegenDiagramDeps { chat: (prompt: string, opts?: { model?: string; system?: string }) => Promise<string>; }
+
+export async function regenerateDiagram(input: RegenDiagramInput, deps: RegenDiagramDeps): Promise<{ diagram: string; diagramType: string }> {
+  const hint = DIAGRAM_HINTS[input.diagramType] ?? input.diagramType;
+  const prompt =
+    `根據以下問題與分析,只產出一張「${input.diagramType}」類型的 Mermaid 圖。\n` +
+    `【問題】${input.problemText}\n【框架】${input.frameworksText}\n【分析】\n${input.analysis}\n\n` +
+    `圖種語法提示:${hint}\n` +
+    `只回 JSON:{"diagram":"完整 Mermaid 語法(第一行為圖種關鍵字)","diagramType":"${input.diagramType}"}`;
+  const parsed = parseJSON(await deps.chat(prompt));
+  return { diagram: parsed.diagram ?? "", diagramType: parsed.diagramType ?? input.diagramType };
 }
 
 export async function discussProblem(input: DiscussInput, deps: DiscussDeps): Promise<string> {

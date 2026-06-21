@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeProblem, discussProblem } from "./solve-service";
+import { analyzeProblem, discussProblem, regenerateDiagram } from "./solve-service";
 
 const fakeFrameworks = [
   { slug: "issue-tree", name: "議題樹", type: "框架", tags: "龐大課題,結構化拆解", steps: "1. 拆解", oneLiner: "拆成樹" },
@@ -32,6 +32,21 @@ describe("analyzeProblem", () => {
     ]);
     const r = await analyzeProblem({ problemText: "p", frameworkSlugs: ["issue-tree"] }, deps);
     expect(r.chosenFrameworks).toEqual(["issue-tree"]);
+  });
+});
+
+describe("regenerateDiagram", () => {
+  it("asks chat for the requested diagram type and returns it", async () => {
+    let seen = "";
+    const deps = { chat: async (p: string) => { seen = p; return JSON.stringify({ diagram: "mindmap\n root((交期))", diagramType: "mindmap" }); } };
+    const r = await regenerateDiagram(
+      { problemText: "交期delay", frameworksText: "5 Whys", analysis: "根因是保養不足", diagramType: "mindmap" },
+      deps,
+    );
+    expect(r.diagramType).toBe("mindmap");
+    expect(r.diagram).toContain("mindmap");
+    expect(seen).toContain("mindmap");
+    expect(seen).toContain("交期delay");
   });
 });
 
