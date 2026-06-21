@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -493,7 +494,7 @@ export const appRouter = router({
       .input(z.object({ problemSolutionId: z.number(), message: z.string().min(1) }))
       .mutation(async ({ ctx, input }) => {
         const solution = await getProblemSolution(input.problemSolutionId, ctx.user.id);
-        if (!solution) throw new Error("找不到該問題或無權限");
+        if (!solution) throw new TRPCError({ code: "NOT_FOUND", message: "找不到該問題或無權限" });
         const history = await listProblemMessages(input.problemSolutionId, ctx.user.id);
         await createProblemMessage({ problemSolutionId: input.problemSolutionId, userId: ctx.user.id, role: "user", content: input.message });
         const reply = await discussProblem({
