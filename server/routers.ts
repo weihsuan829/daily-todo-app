@@ -2,7 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework } from "./db";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -455,6 +455,30 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => createComment(ctx.user.id, input.taskId, input.content)),
     delete: protectedProcedure.input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => deleteComment(ctx.user.id, input.id)),
+  }),
+
+  frameworks: router({
+    list: protectedProcedure.query(async () => listFrameworks()),
+    get: protectedProcedure.input(z.object({ id: z.number() }))
+      .query(async ({ input }) => getFramework(input.id)),
+    update: protectedProcedure.input(z.object({
+      id: z.number(),
+      name: z.string().min(1).max(150).optional(),
+      type: z.enum(["框架", "方法", "原則", "流程"]).optional(),
+      oneLiner: z.string().optional(),
+      tags: z.string().optional(),
+      whenUse: z.string().optional(),
+      steps: z.string().optional(),
+      keyQuestions: z.string().optional(),
+      output: z.string().optional(),
+      example: z.string().optional(),
+      diagram: z.string().optional(),
+    })).mutation(async ({ input }) => {
+      const { id, ...patch } = input;
+      return updateFramework(id, patch);
+    }),
+    delete: protectedProcedure.input(z.object({ id: z.number() }))
+      .mutation(async ({ input }) => deleteFramework(input.id)),
   }),
 });
 
