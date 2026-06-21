@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Markdown } from "./Markdown";
 import { DiagramPanel } from "./DiagramPanel";
 import { DiscussionThread } from "./DiscussionThread";
+import { trpc } from "@/lib/trpc";
+import { DIAGRAM_TYPES } from "./diagramTypes";
 
 export interface SolveResultData {
   id?: number | null;
@@ -12,8 +16,56 @@ export interface SolveResultData {
   diagramType?: string;
 }
 
-export function SolveResult({ result, problemSolutionId }: { result: SolveResultData; problemSolutionId?: number }) {
+function DiagramControls({
+  problemSolutionId,
+  current,
+  onSwap,
+}: {
+  problemSolutionId: number;
+  current?: string;
+  onSwap: (diagram: string, type: string) => void;
+}) {
+  const utils = trpc.useUtils();
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const setDiagram = trpc.solveProblems.setDiagram.useMutation({
+    onSuccess: (r) => {
+      onSwap(r.diagram, r.diagramType);
+      utils.solveProblems.get.invalidate({ id: problemSolutionId });
+      setPendingKey(null);
+    },
+    onError: () => setPendingKey(null),
+  });
+  return (
+    <div className="flex flex-wrap gap-2 mb-3">
+      {DIAGRAM_TYPES.map((t) => (
+        <Button
+          key={t.key}
+          size="sm"
+          variant={current === t.key ? "default" : "outline"}
+          disabled={setDiagram.isPending}
+          onClick={() => {
+            setPendingKey(t.key);
+            setDiagram.mutate({ problemSolutionId, diagramType: t.key });
+          }}
+        >
+          {pendingKey === t.key ? "生成中…" : t.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+export function SolveResult({
+  result,
+  problemSolutionId,
+}: {
+  result: SolveResultData;
+  problemSolutionId?: number;
+}) {
   const reasoningMd = result.reasoning.replace(/\s+(\d+)\.\s+/g, "\n\n$1. ");
+
+  const [localDiagram, setLocalDiagram] = useState(result.diagram);
+  const [localDiagramType, setLocalDiagramType] = useState(result.diagramType);
 
   return (
     <div className="space-y-6">
@@ -32,9 +84,7 @@ export function SolveResult({ result, problemSolutionId }: { result: SolveResult
               </span>
             ))}
           </div>
-          {result.reasoning && (
-            <Markdown>{reasoningMd}</Markdown>
-          )}
+          {result.reasoning && <Markdown>{reasoningMd}</Markdown>}
         </CardContent>
       </Card>
 
@@ -50,10 +100,22 @@ export function SolveResult({ result, problemSolutionId }: { result: SolveResult
       {result.diagram && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">決策圖（點擊放大）</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              決策圖（點擊放大）
+            </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
-            <DiagramPanel code={result.diagram} />
+            {problemSolutionId != null && (
+              <DiagramControls
+                problemSolutionId={problemSolutionId}
+                current={localDiagramType}
+                onSwap={(diagram, type) => {
+                  setLocalDiagram(diagram);
+                  setLocalDiagramType(type);
+                }}
+              />
+            )}
+            <DiagramPanel code={localDiagram} />
           </CardContent>
         </Card>
       )}
