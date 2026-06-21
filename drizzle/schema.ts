@@ -326,6 +326,7 @@ export const problemSolutions = mysqlTable("problem_solutions", {
   analysis: text("analysis"),
   diagram: text("diagram"),
   diagramType: varchar("diagramType", { length: 30 }),
+  nextSteps: text("nextSteps"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type ProblemSolution = typeof problemSolutions.$inferSelect;

@@ -1,0 +1,1 @@
+ALTER TABLE `problem_solutions` ADD `nextSteps` text;
