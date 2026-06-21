@@ -13,7 +13,7 @@ export function NextStepsCard({ nextSteps }: { nextSteps: string[] }) {
 
   const addOne = async (i: number) => {
     if (added.has(i)) return;
-    await create.mutateAsync({ title: nextSteps[i], category });
+    await create.mutateAsync({ title: nextSteps[i], category, dueDate: new Date() });
     setAdded((s) => new Set(s).add(i));
   };
   const addAll = async () => {
