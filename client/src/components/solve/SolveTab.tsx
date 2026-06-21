@@ -8,10 +8,27 @@ import { SolveResult } from "./SolveResult";
 export function SolveTab() {
   const utils = trpc.useUtils();
   const [text, setText] = useState("");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
   const analyze = trpc.solveProblems.analyze.useMutation({ onSuccess: () => utils.solveProblems.history.invalidate() });
   const { data: history = [] } = trpc.solveProblems.history.useQuery();
   const del = trpc.solveProblems.delete.useMutation({ onSuccess: () => utils.solveProblems.history.invalidate() });
+  const { data: selectedData } = trpc.solveProblems.get.useQuery(
+    { id: selectedId! },
+    { enabled: selectedId != null },
+  );
   const r = analyze.data;
+
+  const mappedSelected = selectedData?.solution
+    ? {
+        id: selectedData.solution.id,
+        chosenFrameworks: (selectedData.solution.chosenFrameworks ?? "").split(",").filter(Boolean),
+        reasoning: selectedData.solution.reasoning ?? "",
+        analysis: selectedData.solution.analysis ?? "",
+        diagram: selectedData.solution.diagram ?? "",
+        diagramType: selectedData.solution.diagramType ?? undefined,
+      }
+    : null;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -22,7 +39,10 @@ export function SolveTab() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (text.trim()) analyze.mutate({ problemText: text.trim() });
+              if (text.trim()) {
+                setSelectedId(null);
+                analyze.mutate({ problemText: text.trim() });
+              }
             }}
             className="space-y-3"
           >
@@ -43,19 +63,42 @@ export function SolveTab() {
         <p className="text-destructive text-sm px-1">{analyze.error.message}</p>
       )}
 
-      {r && <SolveResult result={r} />}
+      {/* Show latest analyze result (with discussion thread when id is available) */}
+      {r && !selectedId && (
+        <SolveResult
+          result={r}
+          problemSolutionId={typeof r.id === "number" ? r.id : undefined}
+        />
+      )}
+
+      {/* Show reopened history item */}
+      {selectedId != null && mappedSelected && (
+        <div className="space-y-2">
+          <Button variant="ghost" size="sm" onClick={() => setSelectedId(null)} className="text-muted-foreground">
+            ← 返回
+          </Button>
+          <SolveResult result={mappedSelected} problemSolutionId={selectedId} />
+        </div>
+      )}
 
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground mb-3">歷史記錄</h3>
         <ul className="space-y-2">
           {history.map((h) => (
-            <li key={h.id} className="group flex items-center gap-2 p-3 rounded-lg border border-border bg-card text-sm hover:bg-accent transition-colors">
+            <li
+              key={h.id}
+              className="group flex items-center gap-2 p-3 rounded-lg border border-border bg-card text-sm hover:bg-accent transition-colors cursor-pointer"
+              onClick={() => {
+                setSelectedId(h.id);
+                analyze.reset();
+              }}
+            >
               <span className="flex-1 truncate">{h.problemText}</span>
               <Button
                 variant="ghost"
                 size="icon-sm"
                 className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 transition-opacity"
-                onClick={() => del.mutate({ id: h.id })}
+                onClick={(e) => { e.stopPropagation(); del.mutate({ id: h.id }); }}
                 aria-label="刪除"
               >
                 <Trash2 className="w-3.5 h-3.5" />

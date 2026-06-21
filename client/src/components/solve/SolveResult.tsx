@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Markdown } from "./Markdown";
 import { DiagramPanel } from "./DiagramPanel";
+import { DiscussionThread } from "./DiscussionThread";
 
 export interface SolveResultData {
-  id?: string;
+  id?: number | null;
   chosenFrameworks: string[];
   reasoning: string;
   analysis: string;
@@ -11,7 +12,7 @@ export interface SolveResultData {
   diagramType?: string;
 }
 
-export function SolveResult({ result }: { result: SolveResultData }) {
+export function SolveResult({ result, problemSolutionId }: { result: SolveResultData; problemSolutionId?: number }) {
   return (
     <div className="space-y-4">
       <Card>
@@ -55,7 +56,9 @@ export function SolveResult({ result }: { result: SolveResultData }) {
         </Card>
       )}
 
-      {/* Task 5 placeholder: discussion thread wired to result.id */}
+      {problemSolutionId != null && (
+        <DiscussionThread problemSolutionId={problemSolutionId} />
+      )}
     </div>
   );
 }
