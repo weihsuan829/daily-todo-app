@@ -5,7 +5,7 @@ export interface SolveDeps {
   chat: (prompt: string, opts?: { model?: string; system?: string }) => Promise<string>;
 }
 export interface AnalyzeResult {
-  chosenFrameworks: string[]; reasoning: string; analysis: string; diagram: string; diagramType: string;
+  chosenFrameworks: string[]; reasoning: string; analysis: string; diagram: string; diagramType: string; nextSteps: string[];
 }
 
 function parseJSON(s: string): any {
@@ -39,7 +39,7 @@ export async function analyzeProblem(input: AnalyzeInput, deps: SolveDeps): Prom
     `使用者問題:「${input.problemText}」\n\n選用框架:\n${details}\n\n` +
     `請依框架操作步驟逐步分析這個實際問題,並產出一張對應的圖(Mermaid 語法,依問題自選最合適的圖種:\n` +
     `flowchart(流程/決策樹/因果)、mindmap(發散整理)、quadrantChart(SWOT/2x2 四象限)、timeline(有時序)、sequenceDiagram(角色互動)。diagramType 填所選關鍵字)。\n` +
-    `只回 JSON:{"analysis":"逐步分析(markdown)","diagram":"完整 Mermaid 語法","diagramType":"flowchart|mindmap|..."}`;
+    `只回 JSON:{"analysis":"逐步分析(markdown)","diagram":"完整 Mermaid 語法","diagramType":"flowchart|mindmap|...","nextSteps":["3-5 個具體、可執行、動詞開頭的下一步"]}`;
   const solved = parseJSON(await deps.chat(solvePrompt));
 
   return {
@@ -48,6 +48,7 @@ export async function analyzeProblem(input: AnalyzeInput, deps: SolveDeps): Prom
     analysis: solved.analysis ?? "",
     diagram: solved.diagram ?? "",
     diagramType: solved.diagramType ?? "flowchart",
+    nextSteps: Array.isArray(solved.nextSteps) ? solved.nextSteps : [],
   };
 }
 

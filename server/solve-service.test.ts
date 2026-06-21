@@ -18,12 +18,13 @@ describe("analyzeProblem", () => {
   it("returns chosen frameworks and a diagram", async () => {
     const deps = makeDeps([
       JSON.stringify({ chosenFrameworks: ["issue-tree"], reasoning: "適合拆解" }),
-      JSON.stringify({ analysis: "逐步分析…", diagram: "flowchart TD\n A-->B", diagramType: "flowchart" }),
+      JSON.stringify({ analysis: "逐步分析…", diagram: "flowchart TD\n A-->B", diagramType: "flowchart", nextSteps: ["盤點設備", "建立保養計畫"] }),
     ]);
     const r = await analyzeProblem({ problemText: "我有個大問題" }, deps);
     expect(r.chosenFrameworks).toContain("issue-tree");
     expect(r.diagram).toContain("flowchart");
     expect(r.diagramType).toBe("flowchart");
+    expect(r.nextSteps).toEqual(["盤點設備", "建立保養計畫"]);
   });
 
   it("respects pre-specified frameworkSlugs (skips matching)", async () => {
@@ -32,6 +33,15 @@ describe("analyzeProblem", () => {
     ]);
     const r = await analyzeProblem({ problemText: "p", frameworkSlugs: ["issue-tree"] }, deps);
     expect(r.chosenFrameworks).toEqual(["issue-tree"]);
+  });
+
+  it("returns empty nextSteps when LLM omits nextSteps field", async () => {
+    const deps = makeDeps([
+      JSON.stringify({ chosenFrameworks: ["issue-tree"], reasoning: "適合拆解" }),
+      JSON.stringify({ analysis: "逐步分析…", diagram: "flowchart TD\n A-->B", diagramType: "flowchart" }),
+    ]);
+    const r = await analyzeProblem({ problemText: "沒有 nextSteps 的問題" }, deps);
+    expect(r.nextSteps).toEqual([]);
   });
 });
 
