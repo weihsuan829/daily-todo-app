@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
-import { MermaidDiagram } from "@/components/MermaidDiagram";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
+import { SolveResult } from "./SolveResult";
 
 export function SolveTab() {
   const utils = trpc.useUtils();
@@ -43,41 +43,7 @@ export function SolveTab() {
         <p className="text-destructive text-sm px-1">{analyze.error.message}</p>
       )}
 
-      {r && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">分析結果</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">選用框架</p>
-              <div className="flex flex-wrap gap-1.5">
-                {r.chosenFrameworks.map((f) => (
-                  <span key={f} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
-                    {f}
-                  </span>
-                ))}
-              </div>
-            </div>
-            {r.reasoning && (
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">選擇原因</p>
-                <p className="text-sm text-muted-foreground">{r.reasoning}</p>
-              </div>
-            )}
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">深度分析</p>
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{r.analysis}</pre>
-            </div>
-            {r.diagram && (
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">示意圖</p>
-                <MermaidDiagram code={r.diagram} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {r && <SolveResult result={r} />}
 
       <div>
         <h3 className="text-sm font-semibold text-muted-foreground mb-3">歷史記錄</h3>
