@@ -1,6 +1,6 @@
 import { eq, and, asc, desc, isNull, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note } from "../drizzle/schema";
+import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note, frameworks, problemSolutions, type InsertFramework, type InsertProblemSolution } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
 
@@ -1205,5 +1205,68 @@ export async function deleteProject(userId: number, projectId: number) {
   }
   await db.delete(tags).where(eq(tags.projectId, projectId));
   await db.delete(projects).where(eq(projects.id, projectId));
+  return { success: true };
+}
+
+// ---- Frameworks ----
+export async function listFrameworks() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(frameworks).orderBy(asc(frameworks.type), asc(frameworks.name));
+}
+
+export async function getFramework(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(frameworks).where(eq(frameworks.id, id));
+  return rows[0] ?? null;
+}
+
+export async function updateFramework(id: number, patch: Partial<InsertFramework>) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.update(frameworks).set({ ...patch }).where(eq(frameworks.id, id));
+  return getFramework(id);
+}
+
+export async function deleteFramework(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.delete(frameworks).where(eq(frameworks.id, id));
+  return { success: true };
+}
+
+export async function upsertFrameworkBySlug(data: InsertFramework) {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await db.select().from(frameworks).where(eq(frameworks.slug, data.slug));
+  if (existing[0]) {
+    await db.update(frameworks).set({ ...data }).where(eq(frameworks.slug, data.slug));
+  } else {
+    await db.insert(frameworks).values(data);
+  }
+  return { slug: data.slug };
+}
+
+// ---- Problem Solutions ----
+export async function listProblemSolutions(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(problemSolutions)
+    .where(eq(problemSolutions.userId, userId))
+    .orderBy(desc(problemSolutions.createdAt));
+}
+
+export async function createProblemSolution(data: InsertProblemSolution) {
+  const db = await getDb();
+  if (!db) return null;
+  const res = await db.insert(problemSolutions).values(data);
+  return res;
+}
+
+export async function deleteProblemSolution(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.delete(problemSolutions).where(and(eq(problemSolutions.id, id), eq(problemSolutions.userId, userId)));
   return { success: true };
 }
