@@ -50,3 +50,27 @@ export async function analyzeProblem(input: AnalyzeInput, deps: SolveDeps): Prom
     diagramType: solved.diagramType ?? "flowchart",
   };
 }
+
+export interface DiscussInput {
+  problemText: string;
+  frameworksText: string;
+  analysis: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  message: string;
+}
+export interface DiscussDeps {
+  chat: (prompt: string, opts?: { model?: string; system?: string }) => Promise<string>;
+}
+
+export async function discussProblem(input: DiscussInput, deps: DiscussDeps): Promise<string> {
+  const historyText = input.history.map((m) => `${m.role === "user" ? "使用者" : "AI"}:${m.content}`).join("\n");
+  const prompt =
+    `你是問題解決顧問,正在針對某個問題與使用者深入討論。\n\n` +
+    `【原問題】${input.problemText}\n` +
+    `【選用框架】${input.frameworksText}\n` +
+    `【先前的分析】\n${input.analysis}\n\n` +
+    (historyText ? `【先前對話】\n${historyText}\n\n` : "") +
+    `【使用者新訊息】${input.message}\n\n` +
+    `請延續上下文,給出具體、可行動的回應(繁體中文)。`;
+  return deps.chat(prompt);
+}
