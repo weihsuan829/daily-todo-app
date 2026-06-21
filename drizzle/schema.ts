@@ -288,3 +288,45 @@ export const comments = mysqlTable("comments", {
 });
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = typeof comments.$inferInsert;
+
+/**
+ * Frameworks table for storing problem-solving frameworks
+ * Supports categorization by type (框架/方法/原則/流程) and rich metadata
+ */
+export const frameworks = mysqlTable("frameworks", {
+  id: int("id").autoincrement().primaryKey(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  name: varchar("name", { length: 150 }).notNull(),
+  type: mysqlEnum("type", ["框架", "方法", "原則", "流程"]).notNull(),
+  sourceBook: varchar("sourceBook", { length: 255 }),
+  oneLiner: text("oneLiner"),
+  tags: text("tags"),
+  whenUse: text("whenUse"),
+  steps: text("steps"),
+  keyQuestions: text("keyQuestions"),
+  output: text("output"),
+  example: text("example"),
+  diagram: text("diagram"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Framework = typeof frameworks.$inferSelect;
+export type InsertFramework = typeof frameworks.$inferInsert;
+
+/**
+ * Problem solutions table for storing user problem analysis sessions
+ * Links users to their chosen frameworks and AI-generated analysis
+ */
+export const problemSolutions = mysqlTable("problem_solutions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  problemText: text("problemText").notNull(),
+  chosenFrameworks: text("chosenFrameworks"),
+  reasoning: text("reasoning"),
+  analysis: text("analysis"),
+  diagram: text("diagram"),
+  diagramType: varchar("diagramType", { length: 30 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ProblemSolution = typeof problemSolutions.$inferSelect;
+export type InsertProblemSolution = typeof problemSolutions.$inferInsert;
