@@ -1,6 +1,6 @@
 import { eq, and, asc, desc, isNull, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note, frameworks, problemSolutions, type InsertFramework, type InsertProblemSolution } from "../drizzle/schema";
+import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note, frameworks, problemSolutions, problemMessages, type InsertFramework, type InsertProblemSolution, type InsertProblemMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
 
@@ -1276,4 +1276,26 @@ export async function deleteProblemSolution(id: number, userId: number) {
   if (!db) return null;
   await db.delete(problemSolutions).where(and(eq(problemSolutions.id, id), eq(problemSolutions.userId, userId)));
   return { success: true };
+}
+
+export async function getProblemSolution(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(problemSolutions)
+    .where(and(eq(problemSolutions.id, id), eq(problemSolutions.userId, userId)));
+  return rows[0] ?? null;
+}
+
+export async function listProblemMessages(problemSolutionId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(problemMessages)
+    .where(and(eq(problemMessages.problemSolutionId, problemSolutionId), eq(problemMessages.userId, userId)))
+    .orderBy(asc(problemMessages.createdAt));
+}
+
+export async function createProblemMessage(data: InsertProblemMessage) {
+  const db = await getDb();
+  if (!db) return null;
+  return db.insert(problemMessages).values(data);
 }

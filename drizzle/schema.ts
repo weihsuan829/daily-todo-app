@@ -330,3 +330,14 @@ export const problemSolutions = mysqlTable("problem_solutions", {
 });
 export type ProblemSolution = typeof problemSolutions.$inferSelect;
 export type InsertProblemSolution = typeof problemSolutions.$inferInsert;
+
+export const problemMessages = mysqlTable("problem_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  problemSolutionId: int("problemSolutionId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ProblemMessage = typeof problemMessages.$inferSelect;
+export type InsertProblemMessage = typeof problemMessages.$inferInsert;
