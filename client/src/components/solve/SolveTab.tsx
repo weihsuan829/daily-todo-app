@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Trash2 } from "lucide-react";
 
 export function SolveTab() {
   const utils = trpc.useUtils();
@@ -10,29 +13,87 @@ export function SolveTab() {
   const del = trpc.solveProblems.delete.useMutation({ onSuccess: () => utils.solveProblems.history.invalidate() });
   const r = analyze.data;
   return (
-    <div className="space-y-4">
-      <form onSubmit={(e) => { e.preventDefault(); if (text.trim()) analyze.mutate({ problemText: text.trim() }); }}>
-        <textarea className="w-full border border-border bg-input rounded px-3 py-2 min-h-[90px]"
-          placeholder="描述你的工作問題…" value={text} onChange={(e) => setText(e.target.value)} />
-        <button className="mt-2 px-4 py-2 rounded bg-primary text-primary-foreground disabled:opacity-50"
-          disabled={analyze.isPending}>{analyze.isPending ? "分析中…" : "開始解題"}</button>
-      </form>
-      {analyze.error && <p className="text-destructive text-sm">{analyze.error.message}</p>}
-      {r && (
-        <div className="space-y-3 p-4 rounded-lg border border-border bg-card">
-          <div className="text-sm"><b>選用框架:</b>{r.chosenFrameworks.join("、")}</div>
-          {r.reasoning && <div className="text-sm text-muted-foreground"><b>為什麼:</b>{r.reasoning}</div>}
-          <div className="text-sm"><b>分析:</b><pre className="whitespace-pre-wrap font-sans">{r.analysis}</pre></div>
-          {r.diagram && <MermaidDiagram code={r.diagram} />}
-        </div>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">描述你的問題</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (text.trim()) analyze.mutate({ problemText: text.trim() });
+            }}
+            className="space-y-3"
+          >
+            <textarea
+              className="w-full border border-border bg-input rounded-md px-3 py-2 min-h-[100px] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="描述你的工作問題，例如：團隊溝通不順、專案優先順序混亂…"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <Button type="submit" disabled={analyze.isPending || !text.trim()}>
+              {analyze.isPending ? "分析中…" : "開始解題"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {analyze.error && (
+        <p className="text-destructive text-sm px-1">{analyze.error.message}</p>
       )}
+
+      {r && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">分析結果</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">選用框架</p>
+              <div className="flex flex-wrap gap-1.5">
+                {r.chosenFrameworks.map((f) => (
+                  <span key={f} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </div>
+            {r.reasoning && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">選擇原因</p>
+                <p className="text-sm text-muted-foreground">{r.reasoning}</p>
+              </div>
+            )}
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">深度分析</p>
+              <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{r.analysis}</pre>
+            </div>
+            {r.diagram && (
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">示意圖</p>
+                <MermaidDiagram code={r.diagram} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <div>
-        <h3 className="text-sm font-semibold text-muted-foreground mb-2">歷史</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground mb-3">歷史記錄</h3>
         <ul className="space-y-2">
           {history.map((h) => (
-            <li key={h.id} className="p-3 rounded border border-border bg-card text-sm flex justify-between gap-2">
-              <span className="truncate">{h.problemText}</span>
-              <button className="text-destructive text-xs" onClick={() => del.mutate({ id: h.id })}>刪除</button>
+            <li key={h.id} className="group flex items-center gap-2 p-3 rounded-lg border border-border bg-card text-sm hover:bg-accent transition-colors">
+              <span className="flex-1 truncate">{h.problemText}</span>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 transition-opacity"
+                onClick={() => del.mutate({ id: h.id })}
+                aria-label="刪除"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
             </li>
           ))}
           {history.length === 0 && <p className="text-muted-foreground text-sm">尚無記錄。</p>}

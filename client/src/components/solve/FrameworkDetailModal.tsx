@@ -1,6 +1,18 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MermaidDiagram } from "@/components/MermaidDiagram";
+import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
+import { Trash2 } from "lucide-react";
+
+function Field({ label, value }: { label: string; value?: string | null }) {
+  if (!value) return null;
+  return (
+    <div className="space-y-1">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{value}</pre>
+    </div>
+  );
+}
 
 export function FrameworkDetailModal({ id, open, onOpenChange }:
   { id: number | null; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -13,23 +25,39 @@ export function FrameworkDetailModal({ id, open, onOpenChange }:
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-auto">
-        <DialogHeader><DialogTitle>{f.name} <span className="text-xs text-muted-foreground">({f.type})</span></DialogTitle></DialogHeader>
-        <div className="space-y-3 text-sm">
-          <p className="text-muted-foreground">{f.sourceBook}</p>
-          <p><b>一句話：</b>{f.oneLiner}</p>
-          <div><b>何時用：</b><pre className="whitespace-pre-wrap font-sans">{f.whenUse}</pre></div>
-          <div><b>操作步驟：</b><pre className="whitespace-pre-wrap font-sans">{f.steps}</pre></div>
-          <div><b>關鍵問題：</b><pre className="whitespace-pre-wrap font-sans">{f.keyQuestions}</pre></div>
-          <div><b>產出：</b><pre className="whitespace-pre-wrap font-sans">{f.output}</pre></div>
-          <div><b>範例：</b><pre className="whitespace-pre-wrap font-sans">{f.example}</pre></div>
-          {f.diagram && <div><b>示意圖：</b><MermaidDiagram code={f.diagram} /></div>}
-          <button
-            className="px-3 py-1.5 rounded bg-destructive text-destructive-foreground text-sm disabled:opacity-50"
-            disabled={del.isPending}
-            onClick={() => { if (confirm("確定刪除這個框架?")) del.mutate({ id: f.id }); }}
-          >
-            {del.isPending ? "刪除中…" : "刪除"}
-          </button>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {f.name}
+            <span className="text-xs font-normal text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{f.type}</span>
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 text-sm">
+          {f.sourceBook && (
+            <p className="text-xs text-muted-foreground border-b border-border pb-3">{f.sourceBook}</p>
+          )}
+          <Field label="一句話" value={f.oneLiner} />
+          <Field label="何時用" value={f.whenUse} />
+          <Field label="操作步驟" value={f.steps} />
+          <Field label="關鍵問題" value={f.keyQuestions} />
+          <Field label="產出" value={f.output} />
+          <Field label="範例" value={f.example} />
+          {f.diagram && (
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">示意圖</p>
+              <MermaidDiagram code={f.diagram} />
+            </div>
+          )}
+          <div className="pt-2 border-t border-border">
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={del.isPending}
+              onClick={() => { if (confirm("確定刪除這個框架?")) del.mutate({ id: f.id }); }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {del.isPending ? "刪除中…" : "刪除框架"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
