@@ -1236,6 +1236,13 @@ export async function deleteFramework(id: number) {
   return { success: true };
 }
 
+export async function getFrameworkBySlug(slug: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(frameworks).where(eq(frameworks.slug, slug));
+  return rows[0] ?? null;
+}
+
 export async function upsertFrameworkBySlug(data: InsertFramework) {
   const db = await getDb();
   if (!db) return null;

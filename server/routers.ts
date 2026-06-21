@@ -2,7 +2,9 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework, getFrameworkBySlug, listProblemSolutions, createProblemSolution, deleteProblemSolution } from "./db";
+import { chat } from "./_core/openai";
+import { analyzeProblem } from "./solve-service";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -455,6 +457,31 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => createComment(ctx.user.id, input.taskId, input.content)),
     delete: protectedProcedure.input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => deleteComment(ctx.user.id, input.id)),
+  }),
+
+  solveProblems: router({
+    history: protectedProcedure.query(async ({ ctx }) => listProblemSolutions(ctx.user.id)),
+    delete: protectedProcedure.input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => deleteProblemSolution(input.id, ctx.user.id)),
+    analyze: protectedProcedure
+      .input(z.object({ problemText: z.string().min(1), frameworkSlugs: z.array(z.string()).optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await analyzeProblem(input, {
+          listFrameworks,
+          getFrameworkBySlug,
+          chat,
+        });
+        await createProblemSolution({
+          userId: ctx.user.id,
+          problemText: input.problemText,
+          chosenFrameworks: result.chosenFrameworks.join(","),
+          reasoning: result.reasoning,
+          analysis: result.analysis,
+          diagram: result.diagram,
+          diagramType: result.diagramType,
+        });
+        return result;
+      }),
   }),
 
   frameworks: router({
