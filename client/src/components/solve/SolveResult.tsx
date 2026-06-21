@@ -13,44 +13,46 @@ export interface SolveResultData {
 }
 
 export function SolveResult({ result, problemSolutionId }: { result: SolveResultData; problemSolutionId?: number }) {
+  const reasoningMd = result.reasoning.replace(/\s+(\d+)\.\s+/g, "\n\n$1. ");
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">選用框架</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">選用框架</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-4 pt-0">
           <div className="flex flex-wrap gap-2">
             {result.chosenFrameworks.map((s) => (
               <span
                 key={s}
-                className="px-2 py-1 rounded bg-secondary text-secondary-foreground text-xs font-medium"
+                className="px-3 py-1.5 rounded bg-secondary text-secondary-foreground text-xs font-medium"
               >
                 {s}
               </span>
             ))}
           </div>
           {result.reasoning && (
-            <p className="text-sm text-muted-foreground">{result.reasoning}</p>
+            <Markdown>{reasoningMd}</Markdown>
           )}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">分析</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">分析</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <Markdown>{result.analysis}</Markdown>
         </CardContent>
       </Card>
 
       {result.diagram && (
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">決策圖（點擊放大）</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">決策圖（點擊放大）</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             <DiagramPanel code={result.diagram} />
           </CardContent>
         </Card>
