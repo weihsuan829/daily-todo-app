@@ -34,6 +34,9 @@ describe("parseFramework", () => {
   });
   it("extracts type", () => { expect(f.type).toBe("框架"); });
   it("extracts oneLiner", () => { expect(f.oneLiner).toContain("樹狀圖"); });
-  it("extracts steps block", () => { expect(f.steps).toContain("第一步"); });
+  it("extracts steps block (multi-line)", () => {
+    expect(f.steps).toContain("第一步");
+    expect(f.steps).toContain("第二步");
+  });
   it("extracts example", () => { expect(f.example).toContain("某案例"); });
 });

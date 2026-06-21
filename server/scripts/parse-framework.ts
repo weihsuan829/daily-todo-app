@@ -7,7 +7,8 @@ function metaValue(md: string, label: string): string | undefined {
 
 function section(md: string, heading: string): string | undefined {
   // 抓 "## heading" 到下一個 "## " 或檔尾
-  const re = new RegExp(`^##\\s*${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n##\\s|$)`, "m");
+  // 不用 "m" flag：$ 只能匹配整個字串結尾，不會在每行行尾截斷多行內容
+  const re = new RegExp(`(?:^|\\n)##\\s*${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n##\\s|$)`);
   return md.match(re)?.[1]?.trim();
 }
 
