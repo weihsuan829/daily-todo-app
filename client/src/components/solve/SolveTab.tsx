@@ -26,6 +26,7 @@ export function SolveTab() {
         analysis: selectedData.solution.analysis ?? "",
         diagram: selectedData.solution.diagram ?? "",
         diagramType: selectedData.solution.diagramType ?? undefined,
+        nextSteps: (() => { try { return JSON.parse(selectedData.solution.nextSteps ?? "[]"); } catch { return []; } })(),
       }
     : null;
 

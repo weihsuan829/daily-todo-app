@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Markdown } from "./Markdown";
 import { DiagramPanel } from "./DiagramPanel";
 import { DiscussionThread } from "./DiscussionThread";
+import { NextStepsCard } from "./NextStepsCard";
 import { trpc } from "@/lib/trpc";
 import { DIAGRAM_TYPES } from "./diagramTypes";
 
@@ -14,6 +15,7 @@ export interface SolveResultData {
   analysis: string;
   diagram: string;
   diagramType?: string;
+  nextSteps?: string[];
 }
 
 function DiagramControls({
@@ -74,6 +76,10 @@ export function SolveResult({
 
   return (
     <div className="space-y-6">
+      {result.nextSteps && result.nextSteps.length > 0 && (
+        <NextStepsCard nextSteps={result.nextSteps} />
+      )}
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">選用框架</CardTitle>
