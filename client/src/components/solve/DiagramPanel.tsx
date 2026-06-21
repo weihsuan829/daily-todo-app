@@ -19,8 +19,8 @@ export function DiagramPanel({ code }: { code: string }) {
         <MermaidDiagram code={code} />
       </div>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[95vw] w-[95vw] max-h-[90vh] overflow-auto">
-          <div className="overflow-auto">
+        <DialogContent className="w-[95vw] max-w-[95vw] sm:max-w-[95vw] max-h-[90vh] overflow-auto">
+          <div className="w-full overflow-auto">
             <MermaidDiagram code={code} />
           </div>
         </DialogContent>
