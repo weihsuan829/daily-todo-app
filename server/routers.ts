@@ -3,9 +3,9 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework, getFrameworkBySlug, listProblemSolutions, createProblemSolution, deleteProblemSolution, getProblemSolution, listProblemMessages, createProblemMessage } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework, getFrameworkBySlug, listProblemSolutions, createProblemSolution, deleteProblemSolution, getProblemSolution, listProblemMessages, createProblemMessage, updateProblemSolutionDiagram } from "./db";
 import { chat } from "./_core/openai";
-import { analyzeProblem, discussProblem } from "./solve-service";
+import { analyzeProblem, discussProblem, regenerateDiagram } from "./solve-service";
 import { z } from "zod";
 
 export const appRouter = router({
@@ -506,6 +506,23 @@ export const appRouter = router({
         }, { chat });
         await createProblemMessage({ problemSolutionId: input.problemSolutionId, userId: ctx.user.id, role: "assistant", content: reply });
         return { reply };
+      }),
+    setDiagram: protectedProcedure
+      .input(z.object({
+        problemSolutionId: z.number(),
+        diagramType: z.enum(["flowchart", "mindmap", "quadrantChart", "timeline", "sequenceDiagram"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const solution = await getProblemSolution(input.problemSolutionId, ctx.user.id);
+        if (!solution) throw new TRPCError({ code: "NOT_FOUND", message: "找不到該問題或無權限" });
+        const r = await regenerateDiagram({
+          problemText: solution.problemText,
+          frameworksText: solution.chosenFrameworks ?? "",
+          analysis: solution.analysis ?? "",
+          diagramType: input.diagramType,
+        }, { chat });
+        await updateProblemSolutionDiagram(input.problemSolutionId, ctx.user.id, r.diagram, r.diagramType);
+        return r;
       }),
   }),
 

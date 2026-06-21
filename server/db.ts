@@ -1299,3 +1299,11 @@ export async function createProblemMessage(data: InsertProblemMessage) {
   if (!db) return null;
   return db.insert(problemMessages).values(data);
 }
+
+export async function updateProblemSolutionDiagram(id: number, userId: number, diagram: string, diagramType: string) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.update(problemSolutions).set({ diagram, diagramType })
+    .where(and(eq(problemSolutions.id, id), eq(problemSolutions.userId, userId)));
+  return { id, diagram, diagramType };
+}

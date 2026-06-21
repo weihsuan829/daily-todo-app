@@ -25,4 +25,8 @@ describe("solveProblems router", () => {
     await expect(appRouter.createCaller(ctx()).solveProblems.discuss({ problemSolutionId: 1, message: "" }))
       .rejects.toThrow();
   });
+  it("setDiagram rejects invalid diagramType", async () => {
+    await expect(appRouter.createCaller(ctx()).solveProblems.setDiagram({ problemSolutionId: 1, diagramType: "banana" as any }))
+      .rejects.toThrow();
+  });
 });
