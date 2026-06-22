@@ -1,0 +1,2 @@
+CREATE INDEX `problem_messages_solutionId_userId_idx` ON `problem_messages` (`problemSolutionId`,`userId`);--> statement-breakpoint
+CREATE INDEX `problem_solutions_userId_idx` ON `problem_solutions` (`userId`);

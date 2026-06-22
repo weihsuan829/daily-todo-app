@@ -498,7 +498,7 @@ export const appRouter = router({
         const solution = await getProblemSolution(input.problemSolutionId, ctx.user.id);
         if (!solution) throw new TRPCError({ code: "NOT_FOUND", message: "找不到該問題或無權限" });
         const history = await listProblemMessages(input.problemSolutionId, ctx.user.id);
-        await createProblemMessage({ problemSolutionId: input.problemSolutionId, userId: ctx.user.id, role: "user", content: input.message });
+        // Call LLM first; only persist messages after a successful reply to avoid orphan user messages
         const reply = await discussProblem({
           problemText: solution.problemText,
           frameworksText: solution.chosenFrameworks ?? "",
@@ -506,6 +506,7 @@ export const appRouter = router({
           history: history.map((m) => ({ role: m.role, content: m.content })),
           message: input.message,
         }, { chat });
+        await createProblemMessage({ problemSolutionId: input.problemSolutionId, userId: ctx.user.id, role: "user", content: input.message });
         await createProblemMessage({ problemSolutionId: input.problemSolutionId, userId: ctx.user.id, role: "assistant", content: reply });
         return { reply };
       }),

@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, decimal } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, decimal, index } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -328,7 +328,9 @@ export const problemSolutions = mysqlTable("problem_solutions", {
   diagramType: varchar("diagramType", { length: 30 }),
   nextSteps: text("nextSteps"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("problem_solutions_userId_idx").on(table.userId),
+}));
 export type ProblemSolution = typeof problemSolutions.$inferSelect;
 export type InsertProblemSolution = typeof problemSolutions.$inferInsert;
 
@@ -339,6 +341,8 @@ export const problemMessages = mysqlTable("problem_messages", {
   role: mysqlEnum("role", ["user", "assistant"]).notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  solutionUserIdx: index("problem_messages_solutionId_userId_idx").on(table.problemSolutionId, table.userId),
+}));
 export type ProblemMessage = typeof problemMessages.$inferSelect;
 export type InsertProblemMessage = typeof problemMessages.$inferInsert;

@@ -1,4 +1,4 @@
-import { eq, and, asc, desc, isNull, inArray } from "drizzle-orm";
+import { eq, and, asc, desc, isNull, inArray, notInArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note, frameworks, problemSolutions, problemMessages, type InsertFramework, type InsertProblemSolution, type InsertProblemMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
@@ -1274,6 +1274,8 @@ export async function createProblemSolution(data: InsertProblemSolution) {
 export async function deleteProblemSolution(id: number, userId: number) {
   const db = await getDb();
   if (!db) return null;
+  // Delete child messages first to avoid orphans, scoped by userId for safety
+  await db.delete(problemMessages).where(and(eq(problemMessages.problemSolutionId, id), eq(problemMessages.userId, userId)));
   await db.delete(problemSolutions).where(and(eq(problemSolutions.id, id), eq(problemSolutions.userId, userId)));
   return { success: true };
 }
@@ -1306,4 +1308,22 @@ export async function updateProblemSolutionDiagram(id: number, userId: number, d
   await db.update(problemSolutions).set({ diagram, diagramType })
     .where(and(eq(problemSolutions.id, id), eq(problemSolutions.userId, userId)));
   return { id, diagram, diagramType };
+}
+
+/**
+ * Delete any frameworks rows whose slug is NOT in the given set.
+ * Guard: only runs when importedSlugs is non-empty to prevent accidental mass-delete.
+ * Returns the slugs that were pruned.
+ */
+export async function pruneStaleFrameworks(importedSlugs: string[]): Promise<string[]> {
+  if (importedSlugs.length === 0) return [];
+  const db = await getDb();
+  if (!db) return [];
+  const stale = await db.select({ slug: frameworks.slug })
+    .from(frameworks)
+    .where(notInArray(frameworks.slug, importedSlugs));
+  if (stale.length === 0) return [];
+  const staleSlugs = stale.map((r) => r.slug);
+  await db.delete(frameworks).where(notInArray(frameworks.slug, importedSlugs));
+  return staleSlugs;
 }
