@@ -21,6 +21,8 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./package.json
+# drizzle/ migration files are intentionally NOT copied here — DB migrations
+# run host-side via deploy.sh (drizzle-kit) before the container starts.
 # uploads 由 compose 掛 volume;先建好目錄
 RUN mkdir -p uploads
 EXPOSE 4178

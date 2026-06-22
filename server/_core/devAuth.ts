@@ -6,13 +6,19 @@ import { ENV } from "./env";
 import { sdk } from "./sdk";
 
 /**
- * Development-only login bypass.
+ * Dev-login bypass route (no OAuth required).
  *
- * Manus-generated apps authenticate via the Manus OAuth server. For local
- * development (no OAuth server), this route creates a fixed local user and
- * issues a valid session cookie signed with JWT_SECRET — letting you in with
- * one click. It is ONLY registered when NODE_ENV === "development", so it can
- * never run in production.
+ * Manus-generated apps authenticate via the Manus OAuth server. This route
+ * creates a fixed local user and issues a valid session cookie signed with
+ * JWT_SECRET — letting you in with one click, without an OAuth server.
+ *
+ * The route is registered when EITHER condition is true:
+ *   1. NODE_ENV === "development"  (local dev server)
+ *   2. ALLOW_DEV_LOGIN === "1"     (self-hosted production without an OAuth
+ *                                   server — set explicitly in .env.prod)
+ *
+ * It is OFF by default in production: a cloud deploy that sets neither
+ * NODE_ENV=development nor ALLOW_DEV_LOGIN=1 never registers this route.
  *
  * Visit http://localhost:<port>/api/dev-login to sign in.
  */
