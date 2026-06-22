@@ -12,9 +12,7 @@ RUN pnpm install --frozen-lockfile
 # 複製其餘原始碼並 build(vite -> dist/public, esbuild -> dist/index.js)
 COPY . .
 RUN pnpm build
-# Note: pnpm prune --prod is intentionally omitted because esbuild bundles vite.ts
-# with --packages=external, leaving top-level `import ... from "vite"` in dist/index.js
-# that requires vite to be present at runtime.
+RUN pnpm prune --prod
 
 # ---- runtime stage: 精簡執行環境 ----
 FROM node:22-slim AS runtime
