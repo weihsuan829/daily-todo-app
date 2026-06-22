@@ -11,7 +11,11 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate",
-    "import:frameworks": "tsx --env-file=.env server/scripts/import-frameworks.ts"
+    "import:frameworks": "tsx --env-file=.env server/scripts/import-frameworks.ts",
+    "deploy": "bash scripts/deploy.sh",
+    "prod:up": "docker compose -f docker-compose.prod.yml up -d",
+    "prod:down": "docker compose -f docker-compose.prod.yml down",
+    "prod:logs": "docker compose -f docker-compose.prod.yml logs -f app"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
