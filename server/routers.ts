@@ -482,7 +482,8 @@ export const appRouter = router({
           diagramType: result.diagramType,
           nextSteps: JSON.stringify(result.nextSteps ?? []),
         });
-        const id = (ins as any)?.[0]?.insertId ?? (ins as any)?.insertId ?? null;
+        const header: any = Array.isArray(ins) ? ins[0] : ins;
+        const id = header?.insertId != null ? Number(header.insertId) : null;
         return { id, ...result };
       }),
     get: protectedProcedure.input(z.object({ id: z.number() }))

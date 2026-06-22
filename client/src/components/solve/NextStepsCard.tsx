@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ListChecks, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export function NextStepsCard({ nextSteps }: { nextSteps: string[] }) {
   const [category, setCategory] = useState<"work" | "life">("work");
   const [added, setAdded] = useState<Set<number>>(new Set());
+  useEffect(() => { setAdded(new Set()); }, [nextSteps.join("")]);
   const create = trpc.tasks.create.useMutation();
 
   if (!nextSteps || nextSteps.length === 0) return null;

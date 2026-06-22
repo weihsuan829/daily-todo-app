@@ -7,7 +7,7 @@ function client() {
   return _client;
 }
 
-export async function chat(prompt: string, opts?: { model?: string; system?: string }): Promise<string> {
+export async function chat(prompt: string, opts?: { model?: string; system?: string; json?: boolean }): Promise<string> {
   if (!ENV.openaiApiKey) throw new Error("OPENAI_API_KEY 未設定(請填入 daily-todo-app/.env)");
   const res = await client().chat.completions.create({
     model: opts?.model ?? "gpt-4o-mini",
@@ -15,6 +15,7 @@ export async function chat(prompt: string, opts?: { model?: string; system?: str
       ...(opts?.system ? [{ role: "system" as const, content: opts.system }] : []),
       { role: "user" as const, content: prompt },
     ],
+    ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
   });
   return res.choices[0]?.message?.content ?? "";
 }

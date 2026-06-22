@@ -2,7 +2,7 @@ export interface AnalyzeInput { problemText: string; frameworkSlugs?: string[]; 
 export interface SolveDeps {
   listFrameworks: () => Promise<any[]>;
   getFrameworkBySlug: (slug: string) => Promise<any | null>;
-  chat: (prompt: string, opts?: { model?: string; system?: string }) => Promise<string>;
+  chat: (prompt: string, opts?: { model?: string; system?: string; json?: boolean }) => Promise<string>;
 }
 export interface AnalyzeResult {
   chosenFrameworks: string[]; reasoning: string; analysis: string; diagram: string; diagramType: string; nextSteps: string[];
@@ -11,7 +11,11 @@ export interface AnalyzeResult {
 function parseJSON(s: string): any {
   const fenced = s.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = fenced ? fenced[1] : s;
-  return JSON.parse(raw.trim());
+  try {
+    return JSON.parse(raw.trim());
+  } catch {
+    throw new Error("AI 回傳格式異常,請稍後重試");
+  }
 }
 
 export async function analyzeProblem(input: AnalyzeInput, deps: SolveDeps): Promise<AnalyzeResult> {
@@ -25,7 +29,7 @@ export async function analyzeProblem(input: AnalyzeInput, deps: SolveDeps): Prom
       `你是問題解決教練。以下是可用框架索引:\n${index}\n\n` +
       `使用者問題:「${input.problemText}」\n\n` +
       `挑出 1-3 個最適合的框架。只回 JSON:{"chosenFrameworks":["slug",...],"reasoning":"為什麼選這些"}`;
-    const parsed = parseJSON(await deps.chat(matchPrompt));
+    const parsed = parseJSON(await deps.chat(matchPrompt, { json: true }));
     chosen = parsed.chosenFrameworks ?? [];
     reasoning = parsed.reasoning ?? "";
   }
@@ -40,7 +44,7 @@ export async function analyzeProblem(input: AnalyzeInput, deps: SolveDeps): Prom
     `請依框架操作步驟逐步分析這個實際問題,並產出一張對應的圖(Mermaid 語法,依問題自選最合適的圖種:\n` +
     `flowchart(流程/決策樹/因果)、mindmap(發散整理)、quadrantChart(SWOT/2x2 四象限)、timeline(有時序)、sequenceDiagram(角色互動)。diagramType 填所選關鍵字)。\n` +
     `只回 JSON:{"analysis":"逐步分析(markdown)","diagram":"完整 Mermaid 語法","diagramType":"flowchart|mindmap|...","nextSteps":["3-5 個具體、可執行、動詞開頭的下一步"]}`;
-  const solved = parseJSON(await deps.chat(solvePrompt));
+  const solved = parseJSON(await deps.chat(solvePrompt, { json: true }));
 
   return {
     chosenFrameworks: chosen,
@@ -60,7 +64,7 @@ export interface DiscussInput {
   message: string;
 }
 export interface DiscussDeps {
-  chat: (prompt: string, opts?: { model?: string; system?: string }) => Promise<string>;
+  chat: (prompt: string, opts?: { model?: string; system?: string; json?: boolean }) => Promise<string>;
 }
 
 const DIAGRAM_HINTS: Record<string, string> = {
@@ -72,7 +76,7 @@ const DIAGRAM_HINTS: Record<string, string> = {
 };
 
 export interface RegenDiagramInput { problemText: string; frameworksText: string; analysis: string; diagramType: string; }
-export interface RegenDiagramDeps { chat: (prompt: string, opts?: { model?: string; system?: string }) => Promise<string>; }
+export interface RegenDiagramDeps { chat: (prompt: string, opts?: { model?: string; system?: string; json?: boolean }) => Promise<string>; }
 
 export async function regenerateDiagram(input: RegenDiagramInput, deps: RegenDiagramDeps): Promise<{ diagram: string; diagramType: string }> {
   const hint = DIAGRAM_HINTS[input.diagramType] ?? input.diagramType;
@@ -81,7 +85,7 @@ export async function regenerateDiagram(input: RegenDiagramInput, deps: RegenDia
     `【問題】${input.problemText}\n【框架】${input.frameworksText}\n【分析】\n${input.analysis}\n\n` +
     `圖種語法提示:${hint}\n` +
     `只回 JSON:{"diagram":"完整 Mermaid 語法(第一行為圖種關鍵字)","diagramType":"${input.diagramType}"}`;
-  const parsed = parseJSON(await deps.chat(prompt));
+  const parsed = parseJSON(await deps.chat(prompt, { json: true }));
   return { diagram: parsed.diagram ?? "", diagramType: parsed.diagramType ?? input.diagramType };
 }
 
