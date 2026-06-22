@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
+import { ENV } from "./env";
 import { registerOAuthRoutes } from "./oauth";
 import { registerDevAuthRoutes } from "./devAuth";
 import { registerUploadRoutes } from "./uploads";
@@ -39,8 +40,9 @@ async function startServer() {
   registerOAuthRoutes(app);
   // File upload routes (must be before tRPC + vite catch-all)
   registerUploadRoutes(app);
-  // Dev-only login bypass (no Manus OAuth server needed locally)
-  if (process.env.NODE_ENV === "development") {
+  // Dev login bypass: in development, or when explicitly enabled for local self-hosting
+  // (ALLOW_DEV_LOGIN=1). Stays OFF by default so a real cloud deploy never exposes it.
+  if (ENV.allowDevLogin) {
     registerDevAuthRoutes(app);
   }
   // tRPC API
