@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+uploads
+.env
+.env.*
+*.log
+.manus
+.manus-logs
+.superpowers
+docs
+**/*.test.ts
+**/*.spec.ts
+.DS_Store
