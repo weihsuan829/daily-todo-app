@@ -24,12 +24,17 @@ async function main() {
     else console.warn(`skipped (no DB?): ${slug}`);
   }
   console.log(`Done. ${ok}/${files.length} frameworks imported.`);
-  // Prune stale DB rows not present in the current markdown scan
-  const pruned = await pruneStaleFrameworks(importedSlugs);
-  if (pruned.length > 0) {
-    console.log(`pruned ${pruned.length} stale frameworks: ${pruned.join(", ")}`);
+  // Guard: if any upsert failed, skip prune to avoid accidental deletion of valid frameworks
+  if (ok < files.length) {
+    console.warn("⚠️ 部分框架寫入失敗,略過 prune 以免誤刪");
   } else {
-    console.log("pruned 0 stale frameworks.");
+    // Prune stale DB rows not present in the current markdown scan
+    const pruned = await pruneStaleFrameworks(importedSlugs);
+    if (pruned.length > 0) {
+      console.log(`pruned ${pruned.length} stale frameworks: ${pruned.join(", ")}`);
+    } else {
+      console.log("pruned 0 stale frameworks.");
+    }
   }
   process.exit(0);
 }

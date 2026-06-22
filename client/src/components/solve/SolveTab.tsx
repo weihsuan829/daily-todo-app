@@ -4,14 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
 import { SolveResult } from "./SolveResult";
+import { toast } from "sonner";
 
 export function SolveTab() {
   const utils = trpc.useUtils();
   const [text, setText] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const analyze = trpc.solveProblems.analyze.useMutation({ onSuccess: () => utils.solveProblems.history.invalidate() });
+  const analyze = trpc.solveProblems.analyze.useMutation({
+    onSuccess: () => utils.solveProblems.history.invalidate(),
+    onError: () => toast.error("解題失敗,請重試"),
+  });
   const { data: history = [] } = trpc.solveProblems.history.useQuery();
-  const del = trpc.solveProblems.delete.useMutation({ onSuccess: () => utils.solveProblems.history.invalidate() });
+  const del = trpc.solveProblems.delete.useMutation({
+    onSuccess: (_data, variables) => {
+      utils.solveProblems.history.invalidate();
+      if (variables.id === selectedId) setSelectedId(null);
+    },
+    onError: () => toast.error("刪除失敗,請重試"),
+  });
   const { data: selectedData } = trpc.solveProblems.get.useQuery(
     { id: selectedId! },
     { enabled: selectedId != null },

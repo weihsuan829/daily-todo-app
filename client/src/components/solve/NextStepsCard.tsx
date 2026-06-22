@@ -3,6 +3,7 @@ import { ListChecks, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
 
 export function NextStepsCard({ nextSteps }: { nextSteps: string[] }) {
   const [category, setCategory] = useState<"work" | "life">("work");
@@ -14,8 +15,13 @@ export function NextStepsCard({ nextSteps }: { nextSteps: string[] }) {
 
   const addOne = async (i: number) => {
     if (added.has(i)) return;
-    await create.mutateAsync({ title: nextSteps[i], category, dueDate: new Date() });
-    setAdded((s) => new Set(s).add(i));
+    try {
+      await create.mutateAsync({ title: nextSteps[i], category, dueDate: new Date() });
+      setAdded((s) => new Set(s).add(i));
+      toast.success("已加入任務");
+    } catch {
+      toast.error("加入任務失敗,請重試");
+    }
   };
   const addAll = async () => {
     for (let i = 0; i < nextSteps.length; i++) if (!added.has(i)) await addOne(i);

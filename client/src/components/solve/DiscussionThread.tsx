@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Markdown } from "./Markdown";
+import { toast } from "sonner";
 
 export function DiscussionThread({ problemSolutionId }: { problemSolutionId: number }) {
   const utils = trpc.useUtils();
@@ -11,6 +12,7 @@ export function DiscussionThread({ problemSolutionId }: { problemSolutionId: num
   const [text, setText] = useState("");
   const discuss = trpc.solveProblems.discuss.useMutation({
     onSuccess: () => { utils.solveProblems.get.invalidate({ id: problemSolutionId }); setText(""); },
+    onError: () => toast.error("討論回覆失敗,請重試"),
   });
   return (
     <Card>

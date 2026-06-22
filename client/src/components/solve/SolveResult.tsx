@@ -7,6 +7,7 @@ import { DiscussionThread } from "./DiscussionThread";
 import { NextStepsCard } from "./NextStepsCard";
 import { trpc } from "@/lib/trpc";
 import { DIAGRAM_TYPES } from "./diagramTypes";
+import { toast } from "sonner";
 
 export interface SolveResultData {
   id?: number | null;
@@ -35,7 +36,7 @@ function DiagramControls({
       utils.solveProblems.get.invalidate({ id: problemSolutionId });
       setPendingKey(null);
     },
-    onError: () => setPendingKey(null),
+    onError: () => { setPendingKey(null); toast.error("圖表生成失敗,請重試"); },
   });
   return (
     <div className="flex flex-wrap gap-2 mb-3">
