@@ -15,7 +15,8 @@
     "deploy:prod": "bash scripts/deploy.sh",
     "prod:up": "docker compose -f docker-compose.prod.yml up -d",
     "prod:down": "docker compose -f docker-compose.prod.yml down",
-    "prod:logs": "docker compose -f docker-compose.prod.yml logs -f app"
+    "prod:logs": "docker compose -f docker-compose.prod.yml logs -f app",
+    "db:setup:test": "bash scripts/setup-test-db.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.693.0",
