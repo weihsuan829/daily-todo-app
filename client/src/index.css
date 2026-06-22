@@ -57,22 +57,22 @@
   /* PMS 配色:純白頁面/卡片、淡灰欄底(gray-50)、明顯灰邊框(gray-200) */
   --background: #ffffff;
   --foreground: oklch(0.35 0.01 0);
-  --card: #ffffff;
+  --card: rgba(255, 255, 255, 0.65);
   --card-foreground: oklch(0.35 0.01 0);
-  --popover: #ffffff;
+  --popover: rgba(255, 255, 255, 0.80);
   --popover-foreground: oklch(0.35 0.01 0);
   --secondary: #f3f4f6;
   --secondary-foreground: oklch(0.45 0.01 0);
-  --muted: #f9fafb;
+  --muted: rgba(249, 250, 251, 0.70);
   --muted-foreground: oklch(0.60 0.01 0);
   --accent: oklch(0.75 0.02 0);
   --accent-foreground: oklch(0.98 0.001 0);
   --destructive: oklch(0.62 0.18 30);
   --destructive-foreground: oklch(0.98 0.001 0);
-  --border: #e5e7eb;
+  --border: rgba(255, 255, 255, 0.50);
   --input: #ffffff;
   --ring: oklch(0.75 0.02 0);
-  --sidebar: #ffffff;
+  --sidebar: rgba(255, 255, 255, 0.60);
   --sidebar-foreground: oklch(0.35 0.01 0);
   --sidebar-accent: #f3f4f6;
   --sidebar-accent-foreground: oklch(0.35 0.01 0);
@@ -87,19 +87,19 @@
   --sidebar-primary-foreground: oklch(0.98 0.001 0);
   --background: oklch(0.15 0.02 70);
   --foreground: oklch(0.85 0.01 70);
-  --card: oklch(0.22 0.02 70);
+  --card: rgba(30, 32, 36, 0.60);
   --card-foreground: oklch(0.85 0.01 70);
-  --popover: oklch(0.22 0.02 70);
+  --popover: rgba(28, 30, 34, 0.85);
   --popover-foreground: oklch(0.85 0.01 70);
   --secondary: oklch(0.25 0.02 70);
   --secondary-foreground: oklch(0.75 0.01 70);
-  --muted: oklch(0.30 0.02 70);
+  --muted: rgba(40, 42, 46, 0.60);
   --muted-foreground: oklch(0.70 0.02 70);
   --accent: oklch(0.65 0.08 70);
   --accent-foreground: oklch(0.98 0.001 0);
   --destructive: oklch(0.70 0.16 30);
   --destructive-foreground: oklch(0.98 0.001 0);
-  --border: oklch(1 0 0 / 10%);
+  --border: rgba(255, 255, 255, 0.10);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.65 0.08 70);
   --chart-1: oklch(0.70 0.07 70);
@@ -107,7 +107,7 @@
   --chart-3: oklch(0.60 0.09 70);
   --chart-4: oklch(0.55 0.10 70);
   --chart-5: oklch(0.50 0.11 70);
-  --sidebar: oklch(0.22 0.02 70);
+  --sidebar: rgba(24, 26, 30, 0.60);
   --sidebar-foreground: oklch(0.85 0.01 70);
   --sidebar-accent: oklch(0.30 0.02 70);
   --sidebar-accent-foreground: oklch(0.98 0.001 0);
@@ -120,7 +120,14 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 50%, #e9ebef 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  .dark body {
+    background: linear-gradient(135deg, #1a1c20 0%, #16181c 50%, #101216 100%);
+    background-attachment: fixed;
   }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
