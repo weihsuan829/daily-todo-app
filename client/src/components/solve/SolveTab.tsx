@@ -2,6 +2,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Trash2 } from "lucide-react";
 import { SolveResult } from "./SolveResult";
 import { toast } from "sonner";
@@ -57,8 +58,8 @@ export function SolveTab() {
             }}
             className="space-y-3"
           >
-            <textarea
-              className="w-full border border-border bg-input rounded-md px-3 py-2 min-h-[100px] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            <Textarea
+              className="min-h-[100px] resize-none"
               placeholder="描述你的工作問題，例如：團隊溝通不順、專案優先順序混亂…"
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -104,11 +105,19 @@ export function SolveTab() {
                 analyze.reset();
               }}
             >
-              <span className="flex-1 truncate">{h.problemText}</span>
+              <div className="flex-1 min-w-0">
+                <span className="block truncate">{h.problemText}</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleDateString()}</span>
+                  {h.chosenFrameworks && (
+                    <span className="text-xs text-muted-foreground truncate">{h.chosenFrameworks}</span>
+                  )}
+                </div>
+              </div>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 text-destructive hover:text-destructive hover:bg-destructive/10 transition-opacity shrink-0"
                 onClick={(e) => { e.stopPropagation(); del.mutate({ id: h.id }); }}
                 aria-label="刪除"
               >

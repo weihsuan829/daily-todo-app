@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Markdown } from "./Markdown";
 import { toast } from "sonner";
 
@@ -10,10 +11,16 @@ export function DiscussionThread({ problemSolutionId }: { problemSolutionId: num
   const { data } = trpc.solveProblems.get.useQuery({ id: problemSolutionId });
   const messages = data?.messages ?? [];
   const [text, setText] = useState("");
+  const endRef = useRef<HTMLDivElement>(null);
   const discuss = trpc.solveProblems.discuss.useMutation({
     onSuccess: () => { utils.solveProblems.get.invalidate({ id: problemSolutionId }); setText(""); },
     onError: () => toast.error("討論回覆失敗,請重試"),
   });
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages.length]);
+
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">討論</CardTitle></CardHeader>
@@ -27,9 +34,10 @@ export function DiscussionThread({ problemSolutionId }: { problemSolutionId: num
             </div>
           ))}
           {messages.length === 0 && <p className="text-muted-foreground text-sm">針對這題,有想法就在這裡跟 AI 討論。</p>}
+          <div ref={endRef} />
         </div>
         <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) discuss.mutate({ problemSolutionId, message: text.trim() }); }}>
-          <input className="flex-1 border border-border bg-input rounded px-3 py-2 text-sm" placeholder="輸入你的想法/追問…" value={text} onChange={(e) => setText(e.target.value)} />
+          <Input className="flex-1" placeholder="輸入你的想法/追問…" value={text} onChange={(e) => setText(e.target.value)} />
           <Button type="submit" disabled={discuss.isPending}>{discuss.isPending ? "…" : "送出"}</Button>
         </form>
       </CardContent>

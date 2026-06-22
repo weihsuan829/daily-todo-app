@@ -3,6 +3,7 @@ import { ListChecks, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 
 export function NextStepsCard({ nextSteps }: { nextSteps: string[] }) {
@@ -36,14 +37,15 @@ export function NextStepsCard({ nextSteps }: { nextSteps: string[] }) {
             下一步行動
           </CardTitle>
           <div className="flex items-center gap-2">
-            <select
-              className="text-sm border border-border bg-input rounded px-2 py-1"
-              value={category}
-              onChange={(e) => setCategory(e.target.value as "work" | "life")}
-            >
-              <option value="work">Work</option>
-              <option value="life">Life</option>
-            </select>
+            <Select value={category} onValueChange={(v) => setCategory(v as "work" | "life")}>
+              <SelectTrigger className="text-sm h-8 w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="work">Work</SelectItem>
+                <SelectItem value="life">Life</SelectItem>
+              </SelectContent>
+            </Select>
             <Button size="sm" variant="outline" disabled={create.isPending} onClick={addAll}>
               全部加入
             </Button>

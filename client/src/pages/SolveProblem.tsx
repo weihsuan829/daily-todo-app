@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ArrowLeft, Brain, BookOpen } from "lucide-react";
+import { ArrowLeft, Lightbulb, Library } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SolveTab } from "@/components/solve/SolveTab";
 import { FrameworkLibrary } from "@/components/solve/FrameworkLibrary";
@@ -13,12 +13,12 @@ export default function SolveProblem() {
       <h1 className="text-2xl font-bold mb-6">Solve Problem</h1>
       <Tabs defaultValue="solve">
         <TabsList className="mb-6">
-          <TabsTrigger value="solve">
-            <Brain className="w-4 h-4" />
+          <TabsTrigger value="solve" className="flex items-center gap-1">
+            <Lightbulb className="w-4 h-4" />
             解題
           </TabsTrigger>
-          <TabsTrigger value="library">
-            <BookOpen className="w-4 h-4" />
+          <TabsTrigger value="library" className="flex items-center gap-1">
+            <Library className="w-4 h-4" />
             框架庫
           </TabsTrigger>
         </TabsList>

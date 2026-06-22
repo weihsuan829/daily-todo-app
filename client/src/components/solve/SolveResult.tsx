@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "./Markdown";
 import { DiagramPanel } from "./DiagramPanel";
 import { DiscussionThread } from "./DiscussionThread";
 import { NextStepsCard } from "./NextStepsCard";
+import { FrameworkDetailModal } from "./FrameworkDetailModal";
 import { trpc } from "@/lib/trpc";
 import { DIAGRAM_TYPES } from "./diagramTypes";
 import { toast } from "sonner";
@@ -69,6 +71,10 @@ export function SolveResult({
 
   const [localDiagram, setLocalDiagram] = useState(result.diagram);
   const [localDiagramType, setLocalDiagramType] = useState(result.diagramType);
+  const [openFrameworkId, setOpenFrameworkId] = useState<number | null>(null);
+
+  const { data: frameworks = [] } = trpc.frameworks.list.useQuery();
+  const slugToFramework = Object.fromEntries(frameworks.map((f) => [f.slug, f]));
 
   useEffect(() => {
     setLocalDiagram(result.diagram);
@@ -87,18 +93,36 @@ export function SolveResult({
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
           <div className="flex flex-wrap gap-2">
-            {result.chosenFrameworks.map((s) => (
-              <span
-                key={s}
-                className="px-3 py-1.5 rounded bg-secondary text-secondary-foreground text-xs font-medium"
-              >
-                {s}
-              </span>
-            ))}
+            {result.chosenFrameworks.map((s) => {
+              const fw = slugToFramework[s];
+              if (fw) {
+                return (
+                  <Badge
+                    key={s}
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-secondary/80 transition-colors"
+                    onClick={() => setOpenFrameworkId(fw.id)}
+                  >
+                    {fw.name}
+                  </Badge>
+                );
+              }
+              return (
+                <Badge key={s} variant="secondary">
+                  {s}
+                </Badge>
+              );
+            })}
           </div>
           {result.reasoning && <Markdown>{reasoningMd}</Markdown>}
         </CardContent>
       </Card>
+
+      <FrameworkDetailModal
+        id={openFrameworkId}
+        open={openFrameworkId != null}
+        onOpenChange={(o) => { if (!o) setOpenFrameworkId(null); }}
+      />
 
       <Card>
         <CardHeader className="pb-3">
