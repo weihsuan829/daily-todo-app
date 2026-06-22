@@ -1,3 +1,5 @@
+name: daily-todo-prod
+
 services:
   db:
     image: mysql:8.0
