@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ArrowDownUp, Filter as FilterIcon, RotateCcw, Eye, EyeOff, User, X } from "lucide-react";
+import { ArrowDownUp, Filter as FilterIcon, RotateCcw, Eye, EyeOff, User, X, Upload } from "lucide-react";
+import { ImportExcelDialog } from "./ImportExcelDialog";
 import {
   Popover,
   PopoverContent,
@@ -396,34 +397,43 @@ export function ProjectToolbar({
   const countText = isDefault
     ? `${totalCount} tasks`
     : `${visibleCount} / ${totalCount} tasks`;
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-xs text-muted-foreground">{countText}</span>
-      <div className="flex-1" />
+    <>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs text-muted-foreground">{countText}</span>
+        <div className="flex-1" />
 
-      <SortControl state={state} onChange={onChange} />
-      <FilterControl state={state} onChange={onChange} tags={tags} projectId={projectId} />
-      <OnlyMeToggle
-        value={state.assigneeQuick}
-        onChange={(a) => onChange({ ...state, assigneeQuick: a })}
-      />
-      <ClosedToggle
-        closed={state.closed}
-        onChange={(c) => onChange({ ...state, closed: c })}
-      />
+        <SortControl state={state} onChange={onChange} />
+        <FilterControl state={state} onChange={onChange} tags={tags} projectId={projectId} />
+        <OnlyMeToggle
+          value={state.assigneeQuick}
+          onChange={(a) => onChange({ ...state, assigneeQuick: a })}
+        />
+        <ClosedToggle
+          closed={state.closed}
+          onChange={(c) => onChange({ ...state, closed: c })}
+        />
 
-      {!isDefault && (
-        <button
-          type="button"
-          onClick={() => onChange(DEFAULT_FILTER_STATE)}
-          className="inline-flex items-center gap-1 text-xs px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
-          title="Reset toolbar"
-        >
-          <RotateCcw className="w-3 h-3" />
-          Reset
-        </button>
-      )}
-    </div>
+        <PillButton active={false} onClick={() => setImportOpen(true)}>
+          <Upload className="w-3 h-3" />
+          匯入 Excel
+        </PillButton>
+
+        {!isDefault && (
+          <button
+            type="button"
+            onClick={() => onChange(DEFAULT_FILTER_STATE)}
+            className="inline-flex items-center gap-1 text-xs px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors"
+            title="Reset toolbar"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Reset
+          </button>
+        )}
+      </div>
+      <ImportExcelDialog projectId={projectId} open={importOpen} onOpenChange={setImportOpen} />
+    </>
   );
 }
