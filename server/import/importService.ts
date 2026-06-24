@@ -4,7 +4,7 @@ import { applyStatusCompletionSync } from "../taskStatus";
 import {
   listTasksByProject, createTask, updateTask, listTags, createTag,
   listPlaceholders, createPlaceholder, setTaskTags,
-  listWorkspaceMembers, listTaskTags,
+  listWorkspaceMembers, listTaskTags, checkUserOwnsProject,
 } from "../db";
 import { buildExportWorkbook } from "./xlsx";
 import { taskToRow, type ExportCtx, type ExportTask } from "./exportFormat";
@@ -317,6 +317,9 @@ export async function commitImport(
 }
 
 export async function buildExport(userId: number, projectId: number): Promise<Buffer> {
+  const owns = await checkUserOwnsProject(userId, projectId);
+  if (!owns) throw new Error("User does not own project");
+
   const tasksList = await listTasksByProject(userId, projectId);
   const placeholders = await listPlaceholders(userId, projectId);
   const members = await listWorkspaceMembers(userId, projectId);
