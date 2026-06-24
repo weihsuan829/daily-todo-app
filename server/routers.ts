@@ -8,7 +8,7 @@ import { chat } from "./_core/openai";
 import { analyzeProblem, discussProblem, regenerateDiagram } from "./solve-service";
 import { z } from "zod";
 import { buildTemplate, parseWorkbook } from "./import/xlsx";
-import { buildPreview, commitImport } from "./import/importService";
+import { buildPreview, commitImport, buildExport } from "./import/importService";
 
 export const appRouter = router({
   system: systemRouter,
@@ -593,6 +593,14 @@ export const appRouter = router({
         if (!(await checkUserOwnsProject(ctx.user.id, input.projectId)))
           throw new TRPCError({ code: "FORBIDDEN", message: "無權存取此專案" });
         return commitImport(ctx.user.id, input.projectId, input.rows as Parameters<typeof commitImport>[2]);
+      }),
+    export: protectedProcedure
+      .input(z.object({ projectId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!(await checkUserOwnsProject(ctx.user.id, input.projectId)))
+          throw new TRPCError({ code: "FORBIDDEN", message: "無權存取此專案" });
+        const buf = await buildExport(ctx.user.id, input.projectId);
+        return { filename: "任務匯出.xlsx", base64: buf.toString("base64") };
       }),
   }),
 });

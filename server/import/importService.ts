@@ -4,7 +4,10 @@ import { applyStatusCompletionSync } from "../taskStatus";
 import {
   listTasksByProject, createTask, updateTask, listTags, createTag,
   listPlaceholders, createPlaceholder, setTaskTags,
+  listWorkspaceMembers, listTaskTags,
 } from "../db";
+import { buildExportWorkbook } from "./xlsx";
+import { taskToRow, type ExportCtx, type ExportTask } from "./exportFormat";
 
 // ---------- helpers ----------
 
@@ -311,4 +314,28 @@ export async function commitImport(
   }
 
   return { created, updated, skipped, warnings };
+}
+
+export async function buildExport(userId: number, projectId: number): Promise<Buffer> {
+  const tasksList = await listTasksByProject(userId, projectId);
+  const placeholders = await listPlaceholders(userId, projectId);
+  const members = await listWorkspaceMembers(userId, projectId);
+  const tags = await listTags(userId, projectId);
+  const taskTags = await listTaskTags(userId, projectId);
+
+  const placeholderName = new Map<number, string>(placeholders.map((p) => [p.id, p.name]));
+  const memberName = new Map<number, string>(members.map((m) => [m.id, m.name ?? ""]));
+  const tagName = new Map<number, string>(tags.map((t) => [t.id, t.name]));
+  const tagNamesByTask = new Map<number, string[]>();
+  for (const tt of taskTags) {
+    const arr = tagNamesByTask.get(tt.taskId) ?? [];
+    const n = tagName.get(tt.tagId);
+    if (n) arr.push(n);
+    tagNamesByTask.set(tt.taskId, arr);
+  }
+  const titleById = new Map<number, string>(tasksList.map((t) => [t.id, t.title]));
+  const ctx: ExportCtx = { placeholderName, memberName, tagNamesByTask, titleById };
+
+  const dataRows = tasksList.map((t) => taskToRow(t as ExportTask, ctx));
+  return buildExportWorkbook(dataRows);
 }

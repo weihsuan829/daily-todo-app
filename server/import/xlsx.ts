@@ -73,3 +73,13 @@ export async function parseWorkbook(buf: Buffer): Promise<{ rows: RawRow[]; erro
   }
   return { rows };
 }
+
+export async function buildExportWorkbook(dataRows: string[][]): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Tasks");
+  ws.addRow(HEADER_ORDER);
+  ws.getRow(1).font = { bold: true };
+  for (const r of dataRows) ws.addRow(r);
+  ws.columns.forEach((c) => (c.width = 18));
+  return Buffer.from(await wb.xlsx.writeBuffer());
+}

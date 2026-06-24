@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { buildPreview, commitImport } from "./importService";
+import { buildPreview, commitImport, buildExport } from "./importService";
 import { COLUMNS } from "./types";
+import { parseWorkbook } from "./xlsx";
 import { upsertUser, getUserByOpenId, createProject, listProjects, listTasksByProject, listTags, listPlaceholders, checkUserOwnsProject, createTask } from "../db";
 
 // Inline user+workspace+project setup (mirrors projects.test.ts approach but hits the real test DB)
@@ -140,4 +141,24 @@ describe("import service", () => {
     const otherUserId = userId + 9999;
     expect(await checkUserOwnsProject(otherUserId, projectId)).toBe(false);
   });
+});
+
+it("buildExport produces a sheet that round-trips back through parseWorkbook", async () => {
+  // create a parent + child task with tag + placeholder assignee via the commit path
+  const preview = await buildPreview(userId, projectId, [
+    { [COLUMNS.title]: "匯出大任務", [COLUMNS.assignee]: "匯出阿明", [COLUMNS.tags]: "匯出購料", [COLUMNS.priority]: "高" } as Record<string, unknown>,
+    { [COLUMNS.title]: "匯出小任務", [COLUMNS.parent]: "匯出大任務", [COLUMNS.status]: "完成" } as Record<string, unknown>,
+  ]);
+  await commitImport(userId, projectId, preview.rows);
+
+  const buf = await buildExport(userId, projectId);
+  const { rows, error } = await parseWorkbook(buf);
+  expect(error).toBeUndefined();
+  const big = rows.find((r) => r[COLUMNS.title] === "匯出大任務")!;
+  const small = rows.find((r) => r[COLUMNS.title] === "匯出小任務")!;
+  expect(big[COLUMNS.priority]).toBe("高");
+  expect(String(big[COLUMNS.assignee])).toBe("匯出阿明");
+  expect(String(big[COLUMNS.tags])).toContain("匯出購料");
+  expect(small[COLUMNS.status]).toBe("完成");
+  expect(String(small[COLUMNS.parent])).toBe("匯出大任務");
 });
