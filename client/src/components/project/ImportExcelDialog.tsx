@@ -30,6 +30,7 @@ export function ImportExcelDialog({
   const utils = trpc.useUtils();
   const [preview, setPreview] = useState<SuccessPreview | null>(null);
   const templateQuery = trpc.projectImport.template.useQuery(undefined, { enabled: false });
+  const exportQuery = trpc.projectImport.export.useQuery({ projectId }, { enabled: false });
   const previewMut = trpc.projectImport.preview.useMutation();
   const commitMut = trpc.projectImport.commit.useMutation();
 
@@ -38,10 +39,8 @@ export function ImportExcelDialog({
     if (!v) setPreview(null);
   }
 
-  async function downloadTemplate() {
-    const res = await templateQuery.refetch();
-    if (!res.data) return;
-    const bytes = Uint8Array.from(atob(res.data.base64), (c) => c.charCodeAt(0));
+  function downloadXlsx(base64: string, filename: string) {
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
     const url = URL.createObjectURL(
       new Blob([bytes], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -49,9 +48,21 @@ export function ImportExcelDialog({
     );
     const a = document.createElement("a");
     a.href = url;
-    a.download = res.data.filename;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function downloadTemplate() {
+    const res = await templateQuery.refetch();
+    if (!res.data) return;
+    downloadXlsx(res.data.base64, res.data.filename);
+  }
+
+  async function exportTasks() {
+    const res = await exportQuery.refetch();
+    if (!res.data) return;
+    downloadXlsx(res.data.base64, res.data.filename);
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -100,6 +111,9 @@ export function ImportExcelDialog({
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={downloadTemplate} disabled={templateQuery.isFetching}>
             下載範本
+          </Button>
+          <Button variant="outline" onClick={exportTasks} disabled={exportQuery.isFetching}>
+            匯出現有任務
           </Button>
           <input type="file" accept=".xlsx" onChange={onFile} />
         </div>
