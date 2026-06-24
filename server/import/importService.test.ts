@@ -67,4 +67,29 @@ describe("import service", () => {
     expect(after.filter((t) => t.title === "大任務").length).toBe(1);
     expect(after.find((t) => t.title === "大任務")!.priority).toBe("urgent");
   });
+
+  it("in-sheet duplicate titles: first row is create, second row is error; commit creates only one task", async () => {
+    const dupTitle = `重複任務-${Date.now()}`;
+    const preview = await buildPreview(userId, projectId, [
+      raw({ [COLUMNS.title]: dupTitle, [COLUMNS.priority]: "中" }),
+      raw({ [COLUMNS.title]: dupTitle, [COLUMNS.priority]: "高" }),
+    ]);
+
+    // First occurrence should be create, second should be error
+    expect(preview.rows[0].action).toBe("create");
+    expect(preview.rows[1].action).toBe("error");
+    expect(preview.summary.create).toBe(1);
+    expect(preview.summary.error).toBeGreaterThanOrEqual(1);
+
+    // After commit, only one task with that title should exist
+    const tasksBefore = (await listTasksByProject(userId, projectId)).filter((t) => t.title === dupTitle);
+    expect(tasksBefore.length).toBe(0); // not yet committed
+
+    const res = await commitImport(userId, projectId, preview.rows);
+    expect(res.created).toBe(1);
+    expect(res.skipped).toBeGreaterThanOrEqual(1);
+
+    const tasksAfter = (await listTasksByProject(userId, projectId)).filter((t) => t.title === dupTitle);
+    expect(tasksAfter.length).toBe(1);
+  });
 });

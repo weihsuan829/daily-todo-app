@@ -126,6 +126,8 @@ export async function buildPreview(
 ): Promise<ImportPreview> {
   const idx = await existingTitleIndex(userId, projectId);
   const sheetTitles = new Set<string>();
+  // Track titles already claimed by a non-error row in this sheet (for in-sheet duplicate detection)
+  const claimedTitles = new Set<string>();
   const rows: PreviewRow[] = [];
 
   rawRows.forEach((rawRow, i) => {
@@ -152,11 +154,23 @@ export async function buildPreview(
     }
     if (existing && existing.ids.length === 1) action = "update";
 
+    // In-sheet duplicate detection: if a previous non-error row already claimed this title, error this row
+    if (claimedTitles.has(task.title)) {
+      rows.push({
+        rowNum,
+        action: "error",
+        task,
+        messages: [`第 ${rowNum} 列:任務名稱「${task.title}」在本表重複,已略過`],
+      });
+      return;
+    }
+
     // Parent self-reference warning (other "not found" warnings deferred until after full scan)
     if (task.parentName && task.parentName === task.title) {
       msgs.push(`第 ${rowNum} 列:上層任務不可為自己,已忽略`);
     }
 
+    claimedTitles.add(task.title);
     sheetTitles.add(task.title);
     rows.push({ rowNum, action, task, messages: msgs });
   });
