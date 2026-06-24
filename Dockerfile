@@ -27,3 +27,15 @@ COPY --from=build /app/package.json ./package.json
 RUN mkdir -p uploads
 EXPOSE 4178
 CMD ["node", "dist/index.js"]
+
+# ---- dev stage: 熱重載開發(原始碼由 compose bind-mount 進來)----
+FROM node:22-slim AS dev
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+ENV NODE_ENV=development
+WORKDIR /app
+RUN corepack enable
+COPY package.json pnpm-lock.yaml ./
+COPY patches ./patches
+RUN pnpm install --frozen-lockfile
+EXPOSE 4179
+CMD ["pnpm", "dev"]

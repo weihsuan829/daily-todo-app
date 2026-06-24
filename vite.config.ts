@@ -170,6 +170,7 @@ export default defineConfig({
   },
   server: {
     host: true,
+    watch: { usePolling: !!process.env.VITE_USE_POLLING },
     allowedHosts: [
       ".manuspre.computer",
       ".manus.computer",
