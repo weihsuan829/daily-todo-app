@@ -96,6 +96,35 @@ async function resolveTagIds(
 }
 
 /**
+ * Classify a normalized task row as "create" | "update" | "error" based on:
+ *   - existing DB title index (multiple matching → error; one → update; none → create)
+ *   - in-sheet claimed-titles set (already claimed by a prior non-error row → error)
+ * Returns action + optional error message.  Does NOT mutate claimedTitles.
+ */
+function classifyRow(
+  title: string,
+  idx: Map<string, { ids: number[] }>,
+  claimedTitles: Set<string>,
+  rowNum: number,
+): { action: "create" | "update" | "error"; message?: string } {
+  const existing = idx.get(title);
+  if (existing && existing.ids.length > 1) {
+    return {
+      action: "error",
+      message: `第 ${rowNum} 列:專案內有多筆同名任務「${title}」,無法判斷要更新哪一筆`,
+    };
+  }
+  if (claimedTitles.has(title)) {
+    return {
+      action: "error",
+      message: `第 ${rowNum} 列:任務名稱「${title}」在本表重複,已略過`,
+    };
+  }
+  if (existing && existing.ids.length === 1) return { action: "update" };
+  return { action: "create" };
+}
+
+/**
  * On update, only overwrite optional fields that the sheet actually provided;
  * don't blank out fields that the sheet left empty.
  * title, priority, status are always updated.
@@ -140,30 +169,12 @@ export async function buildPreview(
     }
 
     const msgs = [...messages];
-    const existing = idx.get(task.title);
-    let action: PreviewRow["action"] = "create";
-
-    if (existing && existing.ids.length > 1) {
-      rows.push({
-        rowNum,
-        action: "error",
-        task,
-        messages: [`第 ${rowNum} 列:專案內有多筆同名任務「${task.title}」,無法判斷要更新哪一筆`],
-      });
+    const classification = classifyRow(task.title, idx, claimedTitles, rowNum);
+    if (classification.action === "error") {
+      rows.push({ rowNum, action: "error", task, messages: [classification.message!] });
       return;
     }
-    if (existing && existing.ids.length === 1) action = "update";
-
-    // In-sheet duplicate detection: if a previous non-error row already claimed this title, error this row
-    if (claimedTitles.has(task.title)) {
-      rows.push({
-        rowNum,
-        action: "error",
-        task,
-        messages: [`第 ${rowNum} 列:任務名稱「${task.title}」在本表重複,已略過`],
-      });
-      return;
-    }
+    const action = classification.action;
 
     // Parent self-reference warning (other "not found" warnings deferred until after full scan)
     if (task.parentName && task.parentName === task.title) {
@@ -203,14 +214,20 @@ export async function commitImport(
   const phCache = new Map<string, number>();
   const tagCache = new Map<string, number>();
 
-  // Server-side re-validation: only process rows with action create/update that still pass normalizeRow
+  // Server-side re-validation: re-normalize AND re-classify action (ignore client-supplied action).
+  // Re-build the existing-title index fresh so classification mirrors buildPreview's rules.
+  const commitIdx = await existingTitleIndex(userId, projectId);
+  const commitClaimed = new Set<string>();
+
   type ValidRow = { rowNum: number; action: "create" | "update"; task: NormalizedTaskInput; _taskId?: number };
   const valid: ValidRow[] = [];
   for (const r of rows) {
-    if (r.action === "error") { skipped++; continue; }
     const re = normalizeRow(toRaw(r.task), r.rowNum);
     if (!re.ok) { skipped++; warnings.push(`第 ${r.rowNum} 列:伺服器重新驗證失敗`); continue; }
-    valid.push({ rowNum: r.rowNum, action: r.action as "create" | "update", task: re.task });
+    const cls = classifyRow(re.task.title, commitIdx, commitClaimed, r.rowNum);
+    if (cls.action === "error") { skipped++; continue; }
+    commitClaimed.add(re.task.title);
+    valid.push({ rowNum: r.rowNum, action: cls.action, task: re.task });
   }
 
   // title -> taskId map (seeded with existing tasks for parent resolution)

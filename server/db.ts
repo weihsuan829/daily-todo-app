@@ -960,6 +960,13 @@ async function userOwnsProject(db: NonNullable<Awaited<ReturnType<typeof getDb>>
   return rows.length > 0;
 }
 
+/** Public ownership check: returns true iff userId owns the given project. */
+export async function checkUserOwnsProject(userId: number, projectId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  return userOwnsProject(db, userId, projectId);
+}
+
 export async function updateProject(userId: number, projectId: number, updates: Partial<Pick<Project, "name" | "color" | "description" | "order">>) {
   const db = await getDb();
   if (!db) return null;

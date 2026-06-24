@@ -3,7 +3,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
-import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework, getFrameworkBySlug, listProblemSolutions, createProblemSolution, deleteProblemSolution, getProblemSolution, listProblemMessages, createProblemMessage, updateProblemSolutionDiagram } from "./db";
+import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBannerQuote, upsertBannerQuote, getRecurringTasks, createRecurringTask, updateRecurringTask, deleteRecurringTask, getAllTasksForAdmin, moveTaskInDay, swapTaskOrder, getUserAnnualGoals, createAnnualGoal, updateAnnualGoal, deleteAnnualGoal, getGoalMilestones, createGoalMilestone, updateGoalMilestone, deleteGoalMilestone, getTrackingItems, createTrackingItem, updateTrackingItem, deleteTrackingItem, getTrackingRecords, upsertTrackingRecord, listProjects, createProject, updateProject, archiveProject, deleteProject, listTasksByProject, reorderProjectTasks, listTags, createTag, deleteTag, setTaskTags, listTaskTags, bulkUpdateTasks, bulkDeleteTasks, listWorkspaceMembers, listPlaceholders, createPlaceholder, deletePlaceholder, listAttachments, deleteAttachment, listComments, createComment, deleteComment, listNotes, createNote, updateNote, reorderNotes, deleteNote, listFrameworks, getFramework, updateFramework, deleteFramework, getFrameworkBySlug, listProblemSolutions, createProblemSolution, deleteProblemSolution, getProblemSolution, listProblemMessages, createProblemMessage, updateProblemSolutionDiagram, checkUserOwnsProject } from "./db";
 import { chat } from "./_core/openai";
 import { analyzeProblem, discussProblem, regenerateDiagram } from "./solve-service";
 import { z } from "zod";
@@ -561,8 +561,10 @@ export const appRouter = router({
       return { filename: "專案任務匯入範本.xlsx", base64: buf.toString("base64") };
     }),
     preview: protectedProcedure
-      .input(z.object({ projectId: z.number(), base64: z.string() }))
+      .input(z.object({ projectId: z.number(), base64: z.string().max(15_000_000) }))
       .mutation(async ({ ctx, input }) => {
+        if (!(await checkUserOwnsProject(ctx.user.id, input.projectId)))
+          throw new TRPCError({ code: "FORBIDDEN", message: "無權存取此專案" });
         const { rows, error } = await parseWorkbook(Buffer.from(input.base64, "base64"));
         if (error) return { error, summary: { create: 0, update: 0, error: 0, warning: 0 }, rows: [] };
         return buildPreview(ctx.user.id, input.projectId, rows);
@@ -587,9 +589,11 @@ export const appRouter = router({
           messages: z.array(z.string()),
         })),
       }))
-      .mutation(async ({ ctx, input }) =>
-        commitImport(ctx.user.id, input.projectId, input.rows as Parameters<typeof commitImport>[2]),
-      ),
+      .mutation(async ({ ctx, input }) => {
+        if (!(await checkUserOwnsProject(ctx.user.id, input.projectId)))
+          throw new TRPCError({ code: "FORBIDDEN", message: "無權存取此專案" });
+        return commitImport(ctx.user.id, input.projectId, input.rows as Parameters<typeof commitImport>[2]);
+      }),
   }),
 });
 

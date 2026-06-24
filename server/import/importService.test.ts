@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { buildPreview, commitImport } from "./importService";
 import { COLUMNS } from "./types";
-import { upsertUser, getUserByOpenId, createProject, listProjects, listTasksByProject, listTags, listPlaceholders } from "../db";
+import { upsertUser, getUserByOpenId, createProject, listProjects, listTasksByProject, listTags, listPlaceholders, checkUserOwnsProject, createTask } from "../db";
 
 // Inline user+workspace+project setup (mirrors projects.test.ts approach but hits the real test DB)
 let userId: number;
@@ -91,5 +91,53 @@ describe("import service", () => {
 
     const tasksAfter = (await listTasksByProject(userId, projectId)).filter((t) => t.title === dupTitle);
     expect(tasksAfter.length).toBe(1);
+  });
+
+  it("I1: commitImport re-derives action server-side — DB duplicate blocks client update", async () => {
+    // Create TWO tasks with the same title directly in the DB to simulate a pre-existing duplicate
+    const dupTitle = `DB重複-${Date.now()}`;
+    await createTask(userId, { title: dupTitle, priority: "medium", status: "todo", projectId, order: 0 });
+    await createTask(userId, { title: dupTitle, priority: "medium", status: "todo", projectId, order: 1 });
+
+    const beforeCount = (await listTasksByProject(userId, projectId)).filter((t) => t.title === dupTitle).length;
+    expect(beforeCount).toBe(2);
+
+    // Client sends action:"update" for that title — commit must re-classify as error/skip
+    const fakeRows = [
+      {
+        rowNum: 2,
+        action: "update" as const,
+        task: {
+          title: dupTitle,
+          description: null,
+          priority: "high" as const,
+          status: "todo" as const,
+          startDate: null,
+          dueDate: null,
+          assigneeName: null,
+          tagNames: [],
+          parentName: null,
+        },
+        messages: [],
+      },
+    ];
+    const res = await commitImport(userId, projectId, fakeRows);
+    expect(res.updated).toBe(0);
+    expect(res.skipped).toBeGreaterThanOrEqual(1);
+
+    // Both original tasks must remain untouched
+    const afterTasks = (await listTasksByProject(userId, projectId)).filter((t) => t.title === dupTitle);
+    expect(afterTasks.length).toBe(2);
+    // Neither should have priority changed to "high"
+    expect(afterTasks.every((t) => t.priority !== "high")).toBe(true);
+  });
+
+  it("C1: checkUserOwnsProject returns correct ownership", async () => {
+    // Owner can access their own project
+    expect(await checkUserOwnsProject(userId, projectId)).toBe(true);
+
+    // A different userId (that has never created a project here) cannot access this project
+    const otherUserId = userId + 9999;
+    expect(await checkUserOwnsProject(otherUserId, projectId)).toBe(false);
   });
 });
