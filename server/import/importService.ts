@@ -316,6 +316,20 @@ export async function commitImport(
   return { created, updated, skipped, warnings };
 }
 
+/**
+ * Build an Excel export workbook for all tasks in a project.
+ *
+ * **Known limitation — real-member assignee round-trip:**
+ * When a task is assigned to a real workspace member (via `assigneeId`), that
+ * member's display name is written to the 負責人 column on export.  On
+ * re-import, the importer resolves assignees exclusively through placeholder
+ * members (it never sets `assigneeId` directly), so the row will be re-imported
+ * as a *placeholder* of the same name rather than re-linking the original real
+ * member.  Under the current owner-only member model this is acceptable: real
+ * members are managed outside the import flow and a same-named placeholder
+ * accurately represents the assignment intent for planning purposes.
+ * (The placeholder→member→name fallback chain is unit-tested in exportFormat.test.ts.)
+ */
 export async function buildExport(userId: number, projectId: number): Promise<Buffer> {
   const owns = await checkUserOwnsProject(userId, projectId);
   if (!owns) throw new Error("User does not own project");

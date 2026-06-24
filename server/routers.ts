@@ -600,7 +600,13 @@ export const appRouter = router({
         if (!(await checkUserOwnsProject(ctx.user.id, input.projectId)))
           throw new TRPCError({ code: "FORBIDDEN", message: "無權存取此專案" });
         const buf = await buildExport(ctx.user.id, input.projectId);
-        return { filename: "任務匯出.xlsx", base64: buf.toString("base64") };
+        const projects = await listProjects(ctx.user.id);
+        const project = projects.find((p) => p.id === input.projectId);
+        const rawName = project?.name ?? "";
+        // Replace filesystem/HTTP-unsafe characters and control chars with underscore
+        const safeName = rawName.replace(/[/\\:*?"<>|\x00-\x1f]/g, "_").trim() || "任務匯出";
+        const filename = `${safeName}-任務匯出.xlsx`;
+        return { filename, base64: buf.toString("base64") };
       }),
   }),
 });
