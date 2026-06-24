@@ -20,5 +20,30 @@ services:
       timeout: 5s
       retries: 20
 
+  app:
+    build:
+      context: .
+      target: dev
+    image: daily-todo-app:dev
+    container_name: daily-todo-app-dev
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "4179:4179"
+    environment:
+      DATABASE_URL: mysql://daily:daily_dev@db:3306/daily_todo
+      PORT: "4179"
+      NODE_ENV: development
+      OWNER_OPEN_ID: dev-user
+      JWT_SECRET: local-dev-secret
+      VITE_APP_ID: local-dev
+      VITE_USE_POLLING: "1"
+    volumes:
+      - ./:/app
+      - daily_todo_dev_node_modules:/app/node_modules
+
 volumes:
   daily_todo_mysql:
+  daily_todo_dev_node_modules:
