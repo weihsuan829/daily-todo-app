@@ -55,15 +55,23 @@ export function ImportExcelDialog({
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     const base64 = await fileToBase64(file);
-    const result = await previewMut.mutateAsync({ projectId, base64 });
-    if ((result as { error?: string }).error) {
-      toast.error((result as { error: string }).error);
-      return;
+    try {
+      const result = await previewMut.mutateAsync({ projectId, base64 });
+      if ((result as { error?: string }).error) {
+        setPreview(null);
+        toast.error((result as { error: string }).error);
+      } else {
+        setPreview(result as SuccessPreview);
+      }
+    } catch {
+      setPreview(null);
+      toast.error("解析失敗,請稍後再試");
     }
-    setPreview(result as SuccessPreview);
+    input.value = "";
   }
 
   async function confirmImport() {
