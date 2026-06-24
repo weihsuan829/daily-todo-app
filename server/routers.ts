@@ -7,6 +7,8 @@ import { getUserTasks, createTask, updateTask, deleteTask, getTaskStats, getBann
 import { chat } from "./_core/openai";
 import { analyzeProblem, discussProblem, regenerateDiagram } from "./solve-service";
 import { z } from "zod";
+import { buildTemplate, parseWorkbook } from "./import/xlsx";
+import { buildPreview, commitImport } from "./import/importService";
 
 export const appRouter = router({
   system: systemRouter,
@@ -551,6 +553,43 @@ export const appRouter = router({
     }),
     delete: protectedProcedure.input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => deleteFramework(input.id)),
+  }),
+
+  projectImport: router({
+    template: protectedProcedure.query(async () => {
+      const buf = await buildTemplate();
+      return { filename: "專案任務匯入範本.xlsx", base64: buf.toString("base64") };
+    }),
+    preview: protectedProcedure
+      .input(z.object({ projectId: z.number(), base64: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        const { rows, error } = await parseWorkbook(Buffer.from(input.base64, "base64"));
+        if (error) return { error, summary: { create: 0, update: 0, error: 0, warning: 0 }, rows: [] };
+        return buildPreview(ctx.user.id, input.projectId, rows);
+      }),
+    commit: protectedProcedure
+      .input(z.object({
+        projectId: z.number(),
+        rows: z.array(z.object({
+          rowNum: z.number(),
+          action: z.enum(["create", "update", "error"]),
+          task: z.object({
+            title: z.string(),
+            description: z.string().nullable(),
+            priority: z.enum(["low", "medium", "high", "urgent"]),
+            status: z.enum(["todo", "in_progress", "done", "archived"]),
+            startDate: z.coerce.date().nullable(),
+            dueDate: z.coerce.date().nullable(),
+            assigneeName: z.string().nullable(),
+            tagNames: z.array(z.string()),
+            parentName: z.string().nullable(),
+          }),
+          messages: z.array(z.string()),
+        })),
+      }))
+      .mutation(async ({ ctx, input }) =>
+        commitImport(ctx.user.id, input.projectId, input.rows as Parameters<typeof commitImport>[2]),
+      ),
   }),
 });
 
