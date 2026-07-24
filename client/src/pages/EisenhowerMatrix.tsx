@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Plus, X, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { TaskNotesModal } from "@/components/TaskNotesModal";
+import { canOpenTaskNotes } from "@/lib/canOpenTaskNotes";
 
 type Quadrant = "urgent-important" | "not-urgent-important" | "urgent-not-important" | "not-urgent-not-important";
 
@@ -181,8 +182,8 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
                       className="rounded"
                     />
                     <span
-                      onClick={() => setNotesTask(task)}
-                      className={`flex-1 cursor-pointer ${
+                      onClick={canOpenTaskNotes(task) ? () => setNotesTask(task) : undefined}
+                      className={`flex-1 ${canOpenTaskNotes(task) ? "cursor-pointer" : ""} ${
                         task.completed
                           ? "line-through text-gray-400"
                           : "text-gray-900"
@@ -193,13 +194,15 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
                         <FileText className="inline-block w-3 h-3 ml-1 text-gray-400 align-[-1px]" />
                       ) : null}
                     </span>
-                    <button
-                      onClick={() => setNotesTask(task)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="編輯筆記"
-                    >
-                      <FileText className="w-3 h-3 text-gray-400 hover:text-blue-500" />
-                    </button>
+                    {canOpenTaskNotes(task) && (
+                      <button
+                        onClick={() => setNotesTask(task)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="編輯筆記"
+                      >
+                        <FileText className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         deleteTaskMutation.mutate({
