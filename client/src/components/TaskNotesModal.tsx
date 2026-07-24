@@ -1,10 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ImagePlus, Paperclip, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { buildTaskNotesUpdate, type TaskNotesUpdate } from '@/lib/taskNotesSave';
+import { trpc } from '@/lib/trpc';
+import { findImageItemIndex, screenshotFileName } from '@/lib/clipboardImage';
 
 interface TaskNotesModalProps {
   isOpen: boolean;
@@ -27,6 +31,67 @@ export function TaskNotesModal({ isOpen, task, onClose, onSave, isSaving = false
   const [priority, setPriority] = useState('medium');
 
   const isMatrixTask = task?.category === 'eisenhower';
+
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const utils = trpc.useUtils();
+
+  const attachmentsQuery = trpc.attachments.list.useQuery(
+    { taskId: task?.id ?? 0 },
+    { enabled: isOpen && !!task }
+  );
+  const attachmentList = attachmentsQuery.data ?? [];
+
+  const deleteAttachmentMutation = trpc.attachments.delete.useMutation({
+    onSuccess: () => {
+      if (task) utils.attachments.list.invalidate({ taskId: task.id });
+    },
+    onError: () => toast.error('刪除圖片失敗'),
+  });
+
+  const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+  async function uploadImage(file: File) {
+    if (!task) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast.error(`「${file.name}」超過 50 MB，無法上傳`);
+      return;
+    }
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`/api/tasks/${task.id}/attachments`, {
+        method: 'POST',
+        body: form,
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error(`upload failed: ${res.status}`);
+      utils.attachments.list.invalidate({ taskId: task.id });
+    } catch {
+      toast.error('圖片上傳失敗');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) void uploadImage(file);
+  }
+
+  function handlePaste(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const idx = findImageItemIndex(items);
+    if (idx === -1) return;
+    const file = items[idx].getAsFile();
+    if (!file) return;
+    e.preventDefault();
+    const named = new File([file], screenshotFileName(file.type, Date.now()), { type: file.type });
+    void uploadImage(named);
+  }
 
   useEffect(() => {
     if (task) {
@@ -65,7 +130,10 @@ export function TaskNotesModal({ isOpen, task, onClose, onSave, isSaving = false
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] bg-white border-slate-200 shadow-lg max-h-[85vh] grid-rows-[auto_1fr_auto] overflow-hidden">
+      <DialogContent
+        onPaste={handlePaste}
+        className="sm:max-w-[500px] bg-white border-slate-200 shadow-lg max-h-[85vh] grid-rows-[auto_1fr_auto] overflow-hidden"
+      >
         <DialogHeader>
           <DialogTitle className="text-gray-800 font-semibold">編輯任務</DialogTitle>
         </DialogHeader>
@@ -123,6 +191,68 @@ export function TaskNotesModal({ isOpen, task, onClose, onSave, isSaving = false
             />
           </div>
 
+          {/* Images */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-2 block">
+              圖片{attachmentList.length > 0 && `（${attachmentList.length}）`}
+            </label>
+
+            {attachmentList.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {attachmentList.map((a) =>
+                  isImageFile(a.fileName) ? (
+                    <div key={a.id} className="relative group rounded border border-slate-200 overflow-hidden">
+                      <a href={a.fileUrl} target="_blank" rel="noopener noreferrer">
+                        <img src={a.fileUrl} alt={a.fileName} className="w-full h-24 object-cover" />
+                      </a>
+                      <button
+                        onClick={() => deleteAttachmentMutation.mutate({ id: a.id })}
+                        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition bg-white/90 rounded p-0.5 text-red-500 hover:bg-white"
+                        title="刪除圖片"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div key={a.id} className="relative group col-span-3 flex items-center gap-2 rounded border border-slate-200 px-2 py-1.5 text-sm">
+                      <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <a
+                        href={a.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="flex-1 text-blue-600 hover:underline truncate"
+                      >
+                        {a.fileName}
+                      </a>
+                      <button
+                        onClick={() => deleteAttachmentMutation.mutate({ id: a.id })}
+                        className="opacity-0 group-hover:opacity-100 transition p-0.5 text-red-500"
+                        title="刪除附件"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+
+            <label className="inline-flex items-center gap-2 cursor-pointer text-sm px-3 py-1.5 bg-gray-50 hover:bg-gray-100 border border-slate-200 rounded-md text-gray-700 transition">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+                disabled={uploading || !task}
+              />
+              <ImagePlus className="w-4 h-4" />
+              {uploading ? '上傳中...' : '上傳圖片'}
+            </label>
+            <p className="text-xs text-gray-400 mt-1">也可以直接在此視窗按 Ctrl+V 貼上截圖</p>
+          </div>
+
           {/* Last Edit Time */}
           {task && (
             <div className="text-xs text-gray-500">
@@ -151,4 +281,8 @@ export function TaskNotesModal({ isOpen, task, onClose, onSave, isSaving = false
       </DialogContent>
     </Dialog>
   );
+}
+
+function isImageFile(name: string): boolean {
+  return /\.(png|jpe?g|gif|webp)$/i.test(name);
 }
