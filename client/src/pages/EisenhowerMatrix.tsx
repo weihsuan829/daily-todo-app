@@ -3,8 +3,9 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Plus, X } from "lucide-react";
+import { Plus, X, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { TaskNotesModal } from "@/components/TaskNotesModal";
 
 type Quadrant = "urgent-important" | "not-urgent-important" | "urgent-not-important" | "not-urgent-not-important";
 
@@ -77,6 +78,8 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
     category: "eisenhower",
     date: selectedDate,
   });
+
+  const [notesTask, setNotesTask] = useState<(typeof tasks)[number] | null>(null);
 
   const createTaskMutation = trpc.tasks.create.useMutation({
     onSuccess: () => {
@@ -178,14 +181,25 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
                       className="rounded"
                     />
                     <span
-                      className={`flex-1 ${
+                      onClick={() => setNotesTask(task)}
+                      className={`flex-1 cursor-pointer ${
                         task.completed
                           ? "line-through text-gray-400"
                           : "text-gray-900"
                       }`}
                     >
                       {task.title}
+                      {task.description ? (
+                        <FileText className="inline-block w-3 h-3 ml-1 text-gray-400 align-[-1px]" />
+                      ) : null}
                     </span>
+                    <button
+                      onClick={() => setNotesTask(task)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="編輯筆記"
+                    >
+                      <FileText className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                    </button>
                     <button
                       onClick={() => {
                         deleteTaskMutation.mutate({
@@ -232,6 +246,21 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
           </Card>
         ))}
       </div>
+
+      <TaskNotesModal
+        isOpen={notesTask !== null}
+        task={notesTask}
+        onClose={() => setNotesTask(null)}
+        onSave={(update) => {
+          updateTaskMutation.mutate(update, {
+            onSuccess: () => {
+              setNotesTask(null);
+              toast.success("筆記已保存");
+            },
+          });
+        }}
+        isSaving={updateTaskMutation.isPending}
+      />
     </div>
   );
 }
