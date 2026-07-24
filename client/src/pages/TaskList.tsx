@@ -759,25 +759,18 @@ export default function TaskList() {
           setIsNotesModalOpen(false);
           setSelectedTaskForNotes(null);
         }}
-        onSave={(taskId, description, priority) => {
-          updateTaskMutation.mutate(
-            {
-              id: taskId,
-              description,
-              ...(priority && { priority: priority as 'high' | 'medium' | 'low' }),
+        onSave={(update) => {
+          updateTaskMutation.mutate(update, {
+            onSuccess: () => {
+              utils.tasks.list.invalidate({ category: activeCategory });
+              setIsNotesModalOpen(false);
+              setSelectedTaskForNotes(null);
+              toast.success('筆記已保存');
             },
-            {
-              onSuccess: () => {
-                utils.tasks.list.invalidate({ category: activeCategory });
-                setIsNotesModalOpen(false);
-                setSelectedTaskForNotes(null);
-                toast.success('筆記已保存');
-              },
-              onError: () => {
-                toast.error('保存筆記失敗');
-              },
-            }
-          );
+            onError: () => {
+              toast.error('保存筆記失敗');
+            },
+          });
         }}
         isSaving={updateTaskMutation.isPending}
       />
