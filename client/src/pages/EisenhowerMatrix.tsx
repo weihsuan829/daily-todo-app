@@ -1,61 +1,28 @@
 import { useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Plus, X } from "lucide-react";
+import { Plus, X, FileText } from "lucide-react";
 import { toast } from "sonner";
-
-type Quadrant = "urgent-important" | "not-urgent-important" | "urgent-not-important" | "not-urgent-not-important";
-
-interface QuadrantConfig {
-  key: Quadrant;
-  label: string;
-  description: string;
-  bgColor: string;
-  borderColor: string;
-  topBarColor: string;
-  priority: "high" | "medium" | "low";
-}
-
-const QUADRANTS: QuadrantConfig[] = [
-  {
-    key: "urgent-important",
-    label: "緊急且重要",
-    description: "立即處理",
-    bgColor: "bg-white",
-    borderColor: "border-rose-200",
-    topBarColor: "bg-rose-200",
-    priority: "high",
-  },
-  {
-    key: "not-urgent-important",
-    label: "不緊急但重要",
-    description: "計劃安排",
-    bgColor: "bg-white",
-    borderColor: "border-slate-200",
-    topBarColor: "bg-slate-300",
-    priority: "medium",
-  },
-  {
-    key: "urgent-not-important",
-    label: "緊急但不重要",
-    description: "委派處理",
-    bgColor: "bg-white",
-    borderColor: "border-blue-200",
-    topBarColor: "bg-blue-300",
-    priority: "medium",
-  },
-  {
-    key: "not-urgent-not-important",
-    label: "既不緊急也不重要",
-    description: "消除浪費",
-    bgColor: "bg-white",
-    borderColor: "border-slate-200",
-    topBarColor: "bg-slate-300",
-    priority: "low",
-  },
-];
+import { TaskNotesModal } from "@/components/TaskNotesModal";
+import { canOpenTaskNotes } from "@/lib/canOpenTaskNotes";
+import { QUADRANTS, type Quadrant } from "@/lib/quadrants";
+import { splitByCompletion, computeQuadrantReorder, computeCrossQuadrantMove } from "@/lib/matrixDnd";
+import { CompletedSection } from "@/components/matrix/CompletedSection";
 
 interface EisenhowerMatrixProps {
   selectedDate: Date;
@@ -77,6 +44,8 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
     category: "eisenhower",
     date: selectedDate,
   });
+
+  const [notesTask, setNotesTask] = useState<(typeof tasks)[number] | null>(null);
 
   const createTaskMutation = trpc.tasks.create.useMutation({
     onSuccess: () => {
@@ -109,9 +78,115 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
     },
   });
 
-  // Filter tasks by quadrant
+  const reorderDayMutation = trpc.tasks.reorderDay.useMutation({
+    onSuccess: () => {
+      utils.tasks.list.invalidate({ category: "eisenhower" });
+    },
+    onError: () => {
+      utils.tasks.list.invalidate({ category: "eisenhower" });
+      toast.error("排序失敗");
+    },
+  });
+
+  // Dedicated mutation for the drag cross-quadrant move: does NOT invalidate on
+  // success so the query only settles once, via reorderDayMutation's onSuccess.
+  const moveTaskMutation = trpc.tasks.update.useMutation({
+    onError: () => {
+      utils.tasks.list.invalidate({ category: "eisenhower" });
+      toast.error("更新任務失敗");
+    },
+  });
+
+  const [dragActiveId, setDragActiveId] = useState<number | null>(null);
+  const [historyBusyId, setHistoryBusyId] = useState<number | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const { active: activeTasks, completed: completedTasks } = splitByCompletion(tasks);
+
+  // Filter tasks by quadrant (active tasks only; completed ones live in CompletedSection)
+  // Sorted to mirror the server's own ordering (dueDate first, then order) so that
+  // optimistic `order` rewrites in handleDragEnd actually change visual position.
   const tasksByQuadrant = (quadrant: Quadrant) =>
-    tasks.filter((task) => task.quadrant === quadrant);
+    activeTasks
+      .filter((task) => task.quadrant === quadrant)
+      .sort((a, b) => {
+        const da = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+        const db_ = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+        return da !== db_ ? da - db_ : (a.order ?? 0) - (b.order ?? 0);
+      });
+
+  const findQuadrantOfTask = (id: number): Quadrant | null => {
+    const task = activeTasks.find((t) => t.id === id);
+    return (task?.quadrant as Quadrant) ?? null;
+  };
+
+  const queryInput = { category: "eisenhower" as const, date: selectedDate };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setDragActiveId(event.active.id as number);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setDragActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+    const activeId = active.id as number;
+    const sourceQuadrant = findQuadrantOfTask(activeId);
+    if (!sourceQuadrant) return;
+
+    const overId = over.id as string | number;
+    let targetQuadrant: Quadrant | null = null;
+    let overTaskId: number | null = null;
+    if (typeof overId === "string" && overId.startsWith("quadrant-")) {
+      targetQuadrant = overId.replace("quadrant-", "") as Quadrant;
+    } else if (typeof overId === "number") {
+      targetQuadrant = findQuadrantOfTask(overId);
+      overTaskId = overId;
+    }
+    if (!targetQuadrant) return;
+
+    if (targetQuadrant === sourceQuadrant) {
+      if (overTaskId === null) return;
+      const orderedIds = computeQuadrantReorder(tasksByQuadrant(sourceQuadrant), activeId, overTaskId);
+      if (!orderedIds) return;
+      void utils.tasks.list.cancel(queryInput);
+      utils.tasks.list.setData(queryInput, (old) => {
+        if (!old) return old;
+        return old.map((t) => {
+          const pos = orderedIds.indexOf(t.id);
+          return pos === -1 ? t : { ...t, order: pos };
+        });
+      });
+      reorderDayMutation.mutate({ orderedIds });
+    } else {
+      const { update, orderedIds } = computeCrossQuadrantMove(
+        activeId,
+        targetQuadrant,
+        tasksByQuadrant(targetQuadrant).map((t) => t.id),
+        overTaskId
+      );
+      void utils.tasks.list.cancel(queryInput);
+      utils.tasks.list.setData(queryInput, (old) => {
+        if (!old) return old;
+        return old.map((t) => {
+          const pos = orderedIds.indexOf(t.id);
+          if (t.id === activeId) {
+            return { ...t, quadrant: update.quadrant, priority: update.priority, order: pos };
+          }
+          return pos === -1 ? t : { ...t, order: pos };
+        });
+      });
+      moveTaskMutation.mutate(update, {
+        onSuccess: () => {
+          reorderDayMutation.mutate({ orderedIds });
+        },
+      });
+    }
+  };
+
+  const dragActiveTask = dragActiveId != null ? activeTasks.find((t) => t.id === dragActiveId) : null;
 
   const handleAddTask = async (quadrant: Quadrant) => {
     const title = newTasks[quadrant].trim();
@@ -135,8 +210,14 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
   return (
     <div className="space-y-6">
       {/* 四象限網格 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {QUADRANTS.map((quadrant) => (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {QUADRANTS.map((quadrant) => (
           <Card
             key={quadrant.key}
             className={`border ${quadrant.borderColor} ${quadrant.bgColor} p-4 flex flex-col overflow-hidden`}
@@ -157,50 +238,67 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
             </div>
 
             {/* 任務列表 */}
-            <div className="mb-3 space-y-2 flex-1">
-              {tasksByQuadrant(quadrant.key).length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-2">暂無任務</p>
-              ) : (
-                tasksByQuadrant(quadrant.key).map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-2 rounded bg-white p-2 text-xs group hover:bg-gray-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => {
-                        updateTaskMutation.mutate({
-                          id: task.id,
-                          completed: !task.completed,
-                        });
-                      }}
-                      className="rounded"
-                    />
-                    <span
-                      className={`flex-1 ${
-                        task.completed
-                          ? "line-through text-gray-400"
-                          : "text-gray-900"
-                      }`}
-                    >
-                      {task.title}
-                    </span>
-                    <button
-                      onClick={() => {
-                        deleteTaskMutation.mutate({
-                          id: task.id,
-                          dueDate: task.dueDate,
-                        });
-                      }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+            <DroppableQuadrant quadrant={quadrant.key}>
+              <SortableContext
+                items={tasksByQuadrant(quadrant.key).map((t) => t.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {tasksByQuadrant(quadrant.key).length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-2">暂無任務</p>
+                ) : (
+                  tasksByQuadrant(quadrant.key).map((task) => (
+                    <SortableTaskRow key={task.id} id={task.id}>
+                      <div className="flex items-center gap-2 rounded bg-white p-2 text-xs group hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={task.completed}
+                          onChange={() => {
+                            updateTaskMutation.mutate({
+                              id: task.id,
+                              completed: !task.completed,
+                            });
+                          }}
+                          className="rounded"
+                        />
+                        <span
+                          onClick={canOpenTaskNotes(task) ? () => setNotesTask(task) : undefined}
+                          className={`flex-1 ${canOpenTaskNotes(task) ? "cursor-pointer" : ""} ${
+                            task.completed
+                              ? "line-through text-gray-400"
+                              : "text-gray-900"
+                          }`}
+                        >
+                          {task.title}
+                          {task.description ? (
+                            <FileText className="inline-block w-3 h-3 ml-1 text-gray-400 align-[-1px]" />
+                          ) : null}
+                        </span>
+                        {canOpenTaskNotes(task) && (
+                          <button
+                            onClick={() => setNotesTask(task)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="編輯筆記"
+                          >
+                            <FileText className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            deleteTaskMutation.mutate({
+                              id: task.id,
+                              dueDate: task.dueDate,
+                            });
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
+                        </button>
+                      </div>
+                    </SortableTaskRow>
+                  ))
+                )}
+              </SortableContext>
+            </DroppableQuadrant>
 
             {/* 新增任務輸入 */}
             <div className="flex gap-2">
@@ -232,6 +330,79 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
           </Card>
         ))}
       </div>
+
+        <DragOverlay>
+          {dragActiveTask ? (
+            <div className="flex items-center gap-2 rounded bg-white p-2 text-xs shadow-lg border border-slate-200 opacity-90">
+              <span className="text-gray-900">{dragActiveTask.title}</span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      {/* 已完成歷史區 */}
+      <CompletedSection
+        tasks={completedTasks}
+        onRestore={(id) => {
+          setHistoryBusyId(id);
+          updateTaskMutation.mutate(
+            { id, completed: false },
+            {
+              onSuccess: () => toast.success("已復原"),
+              onSettled: () => setHistoryBusyId(null),
+            }
+          );
+        }}
+        onDelete={(task) => {
+          setHistoryBusyId(task.id);
+          deleteTaskMutation.mutate(
+            { id: task.id, dueDate: task.dueDate ?? undefined },
+            { onSettled: () => setHistoryBusyId(null) }
+          );
+        }}
+        busyId={historyBusyId}
+      />
+
+      <TaskNotesModal
+        isOpen={notesTask !== null}
+        task={notesTask}
+        onClose={() => setNotesTask(null)}
+        onSave={(update) => {
+          updateTaskMutation.mutate(update, {
+            onSuccess: () => {
+              setNotesTask(null);
+              toast.success("筆記已保存");
+            },
+          });
+        }}
+        isSaving={updateTaskMutation.isPending}
+      />
+    </div>
+  );
+}
+
+function SortableTaskRow({ id, children }: { id: number; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
+}
+
+function DroppableQuadrant({ quadrant, children }: { quadrant: Quadrant; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `quadrant-${quadrant}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`mb-3 space-y-2 flex-1 min-h-[40px] rounded transition-colors ${isOver ? "bg-blue-100/20" : ""}`}
+    >
+      {children}
     </div>
   );
 }

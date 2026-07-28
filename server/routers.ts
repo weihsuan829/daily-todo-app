@@ -76,6 +76,7 @@ export const appRouter = router({
         title: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+        quadrant: z.enum(["urgent-important", "not-urgent-important", "urgent-not-important", "not-urgent-not-important"]).optional(),
         completed: z.boolean().optional(),
         dueDate: z.date().nullable().optional(),
         order: z.number().optional(),

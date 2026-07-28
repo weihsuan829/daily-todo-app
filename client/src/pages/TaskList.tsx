@@ -13,6 +13,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { InteractiveTaskCard } from "@/components/InteractiveTaskCard";
 import { Banner } from "@/components/Banner";
 import { TaskNotesModal } from "@/components/TaskNotesModal";
+import { canOpenTaskNotes } from "@/lib/canOpenTaskNotes";
 import { EisenhowerMatrix } from "./EisenhowerMatrix";
 import ProjectSidebarSection from "@/components/project/ProjectSidebarSection";
 import {
@@ -697,10 +698,10 @@ export default function TaskList() {
                                           });
                                         }
                                       }}
-                                      onOpenNotes={(taskData) => {
+                                      onOpenNotes={canOpenTaskNotes(task) ? (taskData) => {
                                         setSelectedTaskForNotes(taskData);
                                         setIsNotesModalOpen(true);
-                                      }}
+                                      } : undefined}
                                       onMoveUp={() => handleMoveTask(task.id, 'up', day)}
                                       onMoveDown={() => handleMoveTask(task.id, 'down', day)}
                                       canMoveUp={canMoveUp && !task.isRecurring}
@@ -762,25 +763,18 @@ export default function TaskList() {
           setIsNotesModalOpen(false);
           setSelectedTaskForNotes(null);
         }}
-        onSave={(taskId, description, priority) => {
-          updateTaskMutation.mutate(
-            {
-              id: taskId,
-              description,
-              ...(priority && { priority: priority as 'high' | 'medium' | 'low' }),
+        onSave={(update) => {
+          updateTaskMutation.mutate(update, {
+            onSuccess: () => {
+              utils.tasks.list.invalidate({ category: activeCategory });
+              setIsNotesModalOpen(false);
+              setSelectedTaskForNotes(null);
+              toast.success('筆記已保存');
             },
-            {
-              onSuccess: () => {
-                utils.tasks.list.invalidate({ category: activeCategory });
-                setIsNotesModalOpen(false);
-                setSelectedTaskForNotes(null);
-                toast.success('筆記已保存');
-              },
-              onError: () => {
-                toast.error('保存筆記失敗');
-              },
-            }
-          );
+            onError: () => {
+              toast.error('保存筆記失敗');
+            },
+          });
         }}
         isSaving={updateTaskMutation.isPending}
       />
