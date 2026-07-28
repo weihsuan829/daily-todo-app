@@ -23,6 +23,16 @@ import { canOpenTaskNotes } from "@/lib/canOpenTaskNotes";
 import { QUADRANTS, type Quadrant } from "@/lib/quadrants";
 import { splitByCompletion, computeQuadrantReorder, computeCrossQuadrantMove } from "@/lib/matrixDnd";
 import { CompletedSection } from "@/components/matrix/CompletedSection";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface EisenhowerMatrixProps {
   selectedDate: Date;
@@ -46,6 +56,7 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
   });
 
   const [notesTask, setNotesTask] = useState<(typeof tasks)[number] | null>(null);
+  const [pendingDeleteTask, setPendingDeleteTask] = useState<(typeof tasks)[number] | null>(null);
 
   const createTaskMutation = trpc.tasks.create.useMutation({
     onSuccess: () => {
@@ -283,13 +294,9 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
                           </button>
                         )}
                         <button
-                          onClick={() => {
-                            deleteTaskMutation.mutate({
-                              id: task.id,
-                              dueDate: task.dueDate,
-                            });
-                          }}
+                          onClick={() => setPendingDeleteTask(task)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="刪除"
                         >
                           <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
                         </button>
@@ -377,6 +384,39 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
         }}
         isSaving={updateTaskMutation.isPending}
       />
+
+      <AlertDialog
+        open={pendingDeleteTask !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteTask(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>確定要永久刪除？</AlertDialogTitle>
+            <AlertDialogDescription>
+              「{pendingDeleteTask?.title}」將被永久刪除，此操作無法復原。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={() => {
+                if (pendingDeleteTask) {
+                  deleteTaskMutation.mutate({
+                    id: pendingDeleteTask.id,
+                    dueDate: pendingDeleteTask.dueDate ?? undefined,
+                  });
+                }
+                setPendingDeleteTask(null);
+              }}
+            >
+              刪除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
