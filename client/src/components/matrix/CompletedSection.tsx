@@ -3,16 +3,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { QUADRANT_MAP, type Quadrant } from "@/lib/quadrants";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/matrix/ConfirmDeleteDialog";
 
 export interface CompletedTask {
   id: number;
@@ -90,33 +81,14 @@ export function CompletedSection({ tasks, onRestore, onDelete, busyId = null }: 
         </div>
       )}
 
-      <AlertDialog
-        open={pendingDelete !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingDelete(null);
+      <ConfirmDeleteDialog
+        taskTitle={pendingDelete?.title ?? null}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) onDelete(pendingDelete);
+          setPendingDelete(null);
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>確定要永久刪除？</AlertDialogTitle>
-            <AlertDialogDescription>
-              「{pendingDelete?.title}」將被永久刪除，此操作無法復原。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-500 hover:bg-red-600"
-              onClick={() => {
-                if (pendingDelete) onDelete(pendingDelete);
-                setPendingDelete(null);
-              }}
-            >
-              刪除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      />
     </Card>
   );
 }

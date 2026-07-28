@@ -23,16 +23,7 @@ import { canOpenTaskNotes } from "@/lib/canOpenTaskNotes";
 import { QUADRANTS, type Quadrant } from "@/lib/quadrants";
 import { splitByCompletion, computeQuadrantReorder, computeCrossQuadrantMove } from "@/lib/matrixDnd";
 import { CompletedSection } from "@/components/matrix/CompletedSection";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmDeleteDialog } from "@/components/matrix/ConfirmDeleteDialog";
 
 interface EisenhowerMatrixProps {
   selectedDate: Date;
@@ -385,38 +376,19 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
         isSaving={updateTaskMutation.isPending}
       />
 
-      <AlertDialog
-        open={pendingDeleteTask !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingDeleteTask(null);
+      <ConfirmDeleteDialog
+        taskTitle={pendingDeleteTask?.title ?? null}
+        onCancel={() => setPendingDeleteTask(null)}
+        onConfirm={() => {
+          if (pendingDeleteTask) {
+            deleteTaskMutation.mutate({
+              id: pendingDeleteTask.id,
+              dueDate: pendingDeleteTask.dueDate ?? undefined,
+            });
+          }
+          setPendingDeleteTask(null);
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>確定要永久刪除？</AlertDialogTitle>
-            <AlertDialogDescription>
-              「{pendingDeleteTask?.title}」將被永久刪除，此操作無法復原。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-500 hover:bg-red-600"
-              onClick={() => {
-                if (pendingDeleteTask) {
-                  deleteTaskMutation.mutate({
-                    id: pendingDeleteTask.id,
-                    dueDate: pendingDeleteTask.dueDate ?? undefined,
-                  });
-                }
-                setPendingDeleteTask(null);
-              }}
-            >
-              刪除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      />
     </div>
   );
 }

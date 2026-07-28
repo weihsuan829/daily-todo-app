@@ -1,5 +1,6 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, beforeEach, afterAll, vi } from "vitest";
 import { appRouter } from "./routers";
+import { deleteTask } from "./db";
 import type { TrpcContext } from "./_core/context";
 import type { User } from "../drizzle/schema";
 
@@ -181,6 +182,80 @@ describe("tasks router", () => {
         // Expected to fail with invalid task IDs, but procedure should exist
         expect(error).toBeDefined();
       }
+    });
+  });
+
+  describe("tasks.list week window (getUserTasks integration)", () => {
+    // getUserTasks anchors its 7-day window on the exact date it's given, so
+    // this test uses a fixed Monday as the weekStart argument (matching the
+    // only real caller's contract) rather than "today", which would make the
+    // test's pass/fail depend on which day it happens to run.
+    const weekStart = new Date(2026, 0, 5); // Monday 2026-01-05, local midnight
+    const inWeekDate = new Date(2026, 0, 7); // Wednesday, same week
+    const nextWeekDate = new Date(2026, 0, 13); // 8 days after weekStart: outside the window
+
+    const inWeekTitle = "WeekScope IntegTest In-Week";
+    const nextWeekTitle = "WeekScope IntegTest Next-Week";
+    const undatedTitle = "WeekScope IntegTest Undated";
+
+    const createdIds: number[] = [];
+
+    function extractInsertId(result: unknown): number | null {
+      const header: any = Array.isArray(result) ? result[0] : result;
+      return header?.insertId != null ? Number(header.insertId) : null;
+    }
+
+    afterAll(async () => {
+      const { ctx } = createTaskContext();
+      for (const id of createdIds) {
+        await deleteTask(id, ctx.user.id);
+      }
+    });
+
+    it("scopes results to the requested week while still surfacing undated tasks, and returns everything when no week is given", async () => {
+      const { ctx } = createTaskContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const inWeekResult = await caller.tasks.create({
+        category: "eisenhower",
+        title: inWeekTitle,
+        priority: "medium",
+        dueDate: inWeekDate,
+      });
+      const nextWeekResult = await caller.tasks.create({
+        category: "eisenhower",
+        title: nextWeekTitle,
+        priority: "medium",
+        dueDate: nextWeekDate,
+      });
+      const undatedResult = await caller.tasks.create({
+        category: "eisenhower",
+        title: undatedTitle,
+        priority: "medium",
+      });
+
+      const inWeekId = extractInsertId(inWeekResult);
+      const nextWeekId = extractInsertId(nextWeekResult);
+      const undatedId = extractInsertId(undatedResult);
+      expect(inWeekId).not.toBeNull();
+      expect(nextWeekId).not.toBeNull();
+      expect(undatedId).not.toBeNull();
+      createdIds.push(inWeekId!, nextWeekId!, undatedId!);
+
+      // Windowed query: the in-week task and the undated task must appear;
+      // the next-week task must not.
+      const windowed = await caller.tasks.list({ category: "eisenhower", date: weekStart });
+      const windowedTitles = windowed.map((t) => t.title);
+      expect(windowedTitles).toContain(inWeekTitle);
+      expect(windowedTitles).toContain(undatedTitle);
+      expect(windowedTitles).not.toContain(nextWeekTitle);
+
+      // No date given: every task is returned, regardless of dueDate.
+      const all = await caller.tasks.list({ category: "eisenhower" });
+      const allTitles = all.map((t) => t.title);
+      expect(allTitles).toContain(inWeekTitle);
+      expect(allTitles).toContain(nextWeekTitle);
+      expect(allTitles).toContain(undatedTitle);
     });
   });
 });

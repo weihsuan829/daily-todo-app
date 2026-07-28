@@ -11,9 +11,19 @@ describe("weekWindow", () => {
     expect(start.getDate()).toBe(new Date("2026-07-27T13:45:30.123Z").getDate());
   });
 
-  it("ends exactly 7 days after the start", () => {
+  it("ends exactly 7 calendar days after the start (date arithmetic, not 168 wall-clock hours)", () => {
     const { start, end } = weekWindow(new Date("2026-07-27T00:00:00.000Z"));
-    expect(end.getTime() - start.getTime()).toBe(7 * 24 * 60 * 60 * 1000);
+    const expectedEnd = new Date(start);
+    expectedEnd.setDate(expectedEnd.getDate() + 7);
+    expect(end.getTime()).toBe(expectedEnd.getTime());
+    expect(end.getHours()).toBe(0);
+  });
+
+  it("handles a year rollover", () => {
+    const { end } = weekWindow(new Date(2026, 11, 28));
+    expect(end.getFullYear()).toBe(2027);
+    expect(end.getMonth()).toBe(0); // January
+    expect(end.getDate()).toBe(4);
   });
 
   it("does not mutate the input date", () => {

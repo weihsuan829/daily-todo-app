@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note, frameworks, problemSolutions, problemMessages, type InsertFramework, type InsertProblemSolution, type InsertProblemMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
-import { weekWindow, isWithinWeek } from "./weekWindow";
+import { weekWindow } from "./weekWindow";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -92,7 +92,15 @@ export async function getUserByOpenId(openId: string) {
 }
 
 // Task queries
-export async function getUserTasks(userId: number, category?: 'work' | 'life' | 'eisenhower', date?: Date) {
+/**
+ * List a user's tasks.
+ *
+ * @param weekStart When given, results are limited to the 7-day window
+ * [weekStart, weekStart + 7 days) plus tasks with no dueDate. Callers MUST pass
+ * the first day of the week — the window is anchored on this date, not on the
+ * week containing it. Omit it to get every task (Work/Life list, Admin, project pages).
+ */
+export async function getUserTasks(userId: number, category?: 'work' | 'life' | 'eisenhower', weekStart?: Date) {
   const db = await getDb();
   if (!db) {
     console.warn("[Database] Cannot get tasks: database not available");
@@ -100,7 +108,7 @@ export async function getUserTasks(userId: number, category?: 'work' | 'life' | 
   }
 
   const conditions: any[] = [eq(tasks.userId, userId)];
-  const window = date ? weekWindow(date) : undefined;
+  const window = weekStart ? weekWindow(weekStart) : undefined;
 
   if (category) {
     conditions.push(eq(tasks.category, category));
@@ -144,20 +152,28 @@ export async function getUserTasks(userId: number, category?: 'work' | 'life' | 
       })
     );
     
-    // Generate virtual tasks for the next 90 days
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    for (let dayOffset = 0; dayOffset < 90; dayOffset++) {
-      const checkDate = new Date(today);
-      checkDate.setDate(checkDate.getDate() + dayOffset);
-      const dayOfWeek = checkDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-
-      // When a week window was requested, virtual rows must be scoped to
-      // that same window rather than always spanning 90 days from today.
-      if (window && !isWithinWeek(checkDate, window)) {
-        continue;
+    // When a week window was requested, iterate that window's 7 days
+    // directly instead of scanning 90 days from today and skipping the
+    // ones outside the window — otherwise a past (or >90-day-out) week
+    // would silently get zero recurring rows even though its real rows
+    // are returned.
+    const checkDates: Date[] = [];
+    if (window) {
+      for (let d = new Date(window.start); d < window.end; d.setDate(d.getDate() + 1)) {
+        checkDates.push(new Date(d));
       }
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      for (let dayOffset = 0; dayOffset < 90; dayOffset++) {
+        const checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() + dayOffset);
+        checkDates.push(checkDate);
+      }
+    }
+
+    for (const checkDate of checkDates) {
+      const dayOfWeek = checkDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
       for (const recurringTask of recurringTasksList) {
         let shouldInclude = false;
