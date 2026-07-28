@@ -162,6 +162,9 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
         onSuccess: () => {
           reorderDayMutation.mutate({ orderedIds });
         },
+        onError: () => {
+          utils.tasks.list.invalidate({ category: "eisenhower" });
+        },
       });
     }
   };
