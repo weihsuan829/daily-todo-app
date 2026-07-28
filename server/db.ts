@@ -1,8 +1,9 @@
-import { eq, and, asc, desc, isNull, inArray, notInArray } from "drizzle-orm";
+import { eq, and, asc, desc, isNull, inArray, notInArray, gte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note, frameworks, problemSolutions, problemMessages, type InsertFramework, type InsertProblemSolution, type InsertProblemMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
+import { weekWindow } from "./weekWindow";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -102,6 +103,12 @@ export async function getUserTasks(userId: number, category?: 'work' | 'life' | 
   
   if (category) {
     conditions.push(eq(tasks.category, category));
+  }
+
+  if (date) {
+    const { start, end } = weekWindow(date);
+    conditions.push(gte(tasks.dueDate, start));
+    conditions.push(lt(tasks.dueDate, end));
   }
 
   try {
