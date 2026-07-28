@@ -12,16 +12,17 @@ import {
 
 interface ConfirmDeleteDialogProps {
   taskTitle: string | null;
+  open: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function ConfirmDeleteDialog({ taskTitle, onConfirm, onCancel }: ConfirmDeleteDialogProps) {
+export function ConfirmDeleteDialog({ taskTitle, open, onConfirm, onCancel }: ConfirmDeleteDialogProps) {
   return (
     <AlertDialog
-      open={taskTitle !== null}
-      onOpenChange={(open) => {
-        if (!open) onCancel();
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onCancel();
       }}
     >
       <AlertDialogContent>

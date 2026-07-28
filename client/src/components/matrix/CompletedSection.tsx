@@ -83,6 +83,7 @@ export function CompletedSection({ tasks, onRestore, onDelete, busyId = null }: 
 
       <ConfirmDeleteDialog
         taskTitle={pendingDelete?.title ?? null}
+        open={pendingDelete !== null}
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => {
           if (pendingDelete) onDelete(pendingDelete);

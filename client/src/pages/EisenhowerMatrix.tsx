@@ -378,6 +378,7 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
 
       <ConfirmDeleteDialog
         taskTitle={pendingDeleteTask?.title ?? null}
+        open={pendingDeleteTask !== null}
         onCancel={() => setPendingDeleteTask(null)}
         onConfirm={() => {
           if (pendingDeleteTask) {

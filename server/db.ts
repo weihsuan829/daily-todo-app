@@ -3,7 +3,7 @@ import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note, frameworks, problemSolutions, problemMessages, type InsertFramework, type InsertProblemSolution, type InsertProblemMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
-import { weekWindow } from "./weekWindow";
+import { weekWindow, isWithinWeek } from "./weekWindow";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -159,7 +159,7 @@ export async function getUserTasks(userId: number, category?: 'work' | 'life' | 
     // are returned.
     const checkDates: Date[] = [];
     if (window) {
-      for (let d = new Date(window.start); d < window.end; d.setDate(d.getDate() + 1)) {
+      for (let d = new Date(window.start); isWithinWeek(d, window); d.setDate(d.getDate() + 1)) {
         checkDates.push(new Date(d));
       }
     } else {

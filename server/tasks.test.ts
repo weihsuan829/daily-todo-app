@@ -193,10 +193,14 @@ describe("tasks router", () => {
     const weekStart = new Date(2026, 0, 5); // Monday 2026-01-05, local midnight
     const inWeekDate = new Date(2026, 0, 7); // Wednesday, same week
     const nextWeekDate = new Date(2026, 0, 13); // 8 days after weekStart: outside the window
+    const boundaryStartDate = new Date(2026, 0, 5); // Exactly at week start (Monday): must appear
+    const boundaryEndDate = new Date(2026, 0, 12); // Exactly at week start + 7 days: must NOT appear
 
     const inWeekTitle = "WeekScope IntegTest In-Week";
     const nextWeekTitle = "WeekScope IntegTest Next-Week";
     const undatedTitle = "WeekScope IntegTest Undated";
+    const boundaryStartTitle = "WeekScope IntegTest Boundary-Start";
+    const boundaryEndTitle = "WeekScope IntegTest Boundary-End";
 
     const createdIds: number[] = [];
 
@@ -233,22 +237,40 @@ describe("tasks router", () => {
         title: undatedTitle,
         priority: "medium",
       });
+      const boundaryStartResult = await caller.tasks.create({
+        category: "eisenhower",
+        title: boundaryStartTitle,
+        priority: "medium",
+        dueDate: boundaryStartDate,
+      });
+      const boundaryEndResult = await caller.tasks.create({
+        category: "eisenhower",
+        title: boundaryEndTitle,
+        priority: "medium",
+        dueDate: boundaryEndDate,
+      });
 
       const inWeekId = extractInsertId(inWeekResult);
       const nextWeekId = extractInsertId(nextWeekResult);
       const undatedId = extractInsertId(undatedResult);
+      const boundaryStartId = extractInsertId(boundaryStartResult);
+      const boundaryEndId = extractInsertId(boundaryEndResult);
       expect(inWeekId).not.toBeNull();
       expect(nextWeekId).not.toBeNull();
       expect(undatedId).not.toBeNull();
-      createdIds.push(inWeekId!, nextWeekId!, undatedId!);
+      expect(boundaryStartId).not.toBeNull();
+      expect(boundaryEndId).not.toBeNull();
+      createdIds.push(inWeekId!, nextWeekId!, undatedId!, boundaryStartId!, boundaryEndId!);
 
-      // Windowed query: the in-week task and the undated task must appear;
-      // the next-week task must not.
+      // Windowed query: the in-week task, boundary-start task, and the undated task must appear;
+      // the next-week task and boundary-end task must not.
       const windowed = await caller.tasks.list({ category: "eisenhower", date: weekStart });
       const windowedTitles = windowed.map((t) => t.title);
       expect(windowedTitles).toContain(inWeekTitle);
       expect(windowedTitles).toContain(undatedTitle);
+      expect(windowedTitles).toContain(boundaryStartTitle);
       expect(windowedTitles).not.toContain(nextWeekTitle);
+      expect(windowedTitles).not.toContain(boundaryEndTitle);
 
       // No date given: every task is returned, regardless of dueDate.
       const all = await caller.tasks.list({ category: "eisenhower" });
@@ -256,6 +278,8 @@ describe("tasks router", () => {
       expect(allTitles).toContain(inWeekTitle);
       expect(allTitles).toContain(nextWeekTitle);
       expect(allTitles).toContain(undatedTitle);
+      expect(allTitles).toContain(boundaryStartTitle);
+      expect(allTitles).toContain(boundaryEndTitle);
     });
   });
 });
