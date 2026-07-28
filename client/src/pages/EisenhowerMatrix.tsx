@@ -7,57 +7,9 @@ import { Plus, X, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { TaskNotesModal } from "@/components/TaskNotesModal";
 import { canOpenTaskNotes } from "@/lib/canOpenTaskNotes";
-
-type Quadrant = "urgent-important" | "not-urgent-important" | "urgent-not-important" | "not-urgent-not-important";
-
-interface QuadrantConfig {
-  key: Quadrant;
-  label: string;
-  description: string;
-  bgColor: string;
-  borderColor: string;
-  topBarColor: string;
-  priority: "high" | "medium" | "low";
-}
-
-const QUADRANTS: QuadrantConfig[] = [
-  {
-    key: "urgent-important",
-    label: "緊急且重要",
-    description: "立即處理",
-    bgColor: "bg-white",
-    borderColor: "border-rose-200",
-    topBarColor: "bg-rose-200",
-    priority: "high",
-  },
-  {
-    key: "not-urgent-important",
-    label: "不緊急但重要",
-    description: "計劃安排",
-    bgColor: "bg-white",
-    borderColor: "border-slate-200",
-    topBarColor: "bg-slate-300",
-    priority: "medium",
-  },
-  {
-    key: "urgent-not-important",
-    label: "緊急但不重要",
-    description: "委派處理",
-    bgColor: "bg-white",
-    borderColor: "border-blue-200",
-    topBarColor: "bg-blue-300",
-    priority: "medium",
-  },
-  {
-    key: "not-urgent-not-important",
-    label: "既不緊急也不重要",
-    description: "消除浪費",
-    bgColor: "bg-white",
-    borderColor: "border-slate-200",
-    topBarColor: "bg-slate-300",
-    priority: "low",
-  },
-];
+import { QUADRANTS, type Quadrant } from "@/lib/quadrants";
+import { splitByCompletion } from "@/lib/matrixDnd";
+import { CompletedSection } from "@/components/matrix/CompletedSection";
 
 interface EisenhowerMatrixProps {
   selectedDate: Date;
@@ -113,9 +65,11 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
     },
   });
 
-  // Filter tasks by quadrant
+  const { active: activeTasks, completed: completedTasks } = splitByCompletion(tasks);
+
+  // Filter tasks by quadrant (active tasks only; completed ones live in CompletedSection)
   const tasksByQuadrant = (quadrant: Quadrant) =>
-    tasks.filter((task) => task.quadrant === quadrant);
+    activeTasks.filter((task) => task.quadrant === quadrant);
 
   const handleAddTask = async (quadrant: Quadrant) => {
     const title = newTasks[quadrant].trim();
@@ -249,6 +203,21 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
           </Card>
         ))}
       </div>
+
+      {/* 已完成歷史區 */}
+      <CompletedSection
+        tasks={completedTasks}
+        onRestore={(id) =>
+          updateTaskMutation.mutate(
+            { id, completed: false },
+            { onSuccess: () => toast.success("已復原") }
+          )
+        }
+        onDelete={(task) =>
+          deleteTaskMutation.mutate({ id: task.id, dueDate: task.dueDate ?? undefined })
+        }
+        isBusy={updateTaskMutation.isPending || deleteTaskMutation.isPending}
+      />
 
       <TaskNotesModal
         isOpen={notesTask !== null}
