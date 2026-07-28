@@ -19,17 +19,22 @@ export interface CompletedTask {
   title: string;
   quadrant: string | null;
   dueDate: Date | null;
+  completedAt: Date | null;
 }
 
 interface CompletedSectionProps {
   tasks: CompletedTask[];
   onRestore: (id: number) => void;
   onDelete: (task: CompletedTask) => void;
-  isBusy?: boolean;
+  busyId?: number | null;
 }
 
-export function CompletedSection({ tasks, onRestore, onDelete, isBusy = false }: CompletedSectionProps) {
+export function CompletedSection({ tasks, onRestore, onDelete, busyId = null }: CompletedSectionProps) {
   const [pendingDelete, setPendingDelete] = useState<CompletedTask | null>(null);
+
+  const sorted = [...tasks].sort(
+    (a, b) => new Date(b.completedAt ?? 0).getTime() - new Date(a.completedAt ?? 0).getTime()
+  );
 
   return (
     <Card className="border border-slate-200 bg-white p-4">
@@ -41,7 +46,7 @@ export function CompletedSection({ tasks, onRestore, onDelete, isBusy = false }:
         <p className="text-xs text-gray-400 text-center py-2">尚無已完成任務</p>
       ) : (
         <div className="space-y-1">
-          {tasks.map((task) => {
+          {sorted.map((task) => {
             const meta = task.quadrant ? QUADRANT_MAP[task.quadrant as Quadrant] : undefined;
             return (
               <div
@@ -55,9 +60,17 @@ export function CompletedSection({ tasks, onRestore, onDelete, isBusy = false }:
                   </span>
                 )}
                 <span className="flex-1 line-through text-gray-400 truncate">{task.title}</span>
+                {task.completedAt ? (
+                  <span className="shrink-0 text-gray-300">
+                    {new Date(task.completedAt).toLocaleDateString("zh-TW", {
+                      month: "2-digit",
+                      day: "2-digit",
+                    })}
+                  </span>
+                ) : null}
                 <button
                   onClick={() => onRestore(task.id)}
-                  disabled={isBusy}
+                  disabled={busyId === task.id}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                   title="復原"
                 >
@@ -65,7 +78,7 @@ export function CompletedSection({ tasks, onRestore, onDelete, isBusy = false }:
                 </button>
                 <button
                   onClick={() => setPendingDelete(task)}
-                  disabled={isBusy}
+                  disabled={busyId === task.id}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                   title="刪除"
                 >

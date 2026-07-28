@@ -88,7 +88,17 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
     },
   });
 
+  // Dedicated mutation for the drag cross-quadrant move: does NOT invalidate on
+  // success so the query only settles once, via reorderDayMutation's onSuccess.
+  const moveTaskMutation = trpc.tasks.update.useMutation({
+    onError: () => {
+      utils.tasks.list.invalidate({ category: "eisenhower" });
+      toast.error("更新任務失敗");
+    },
+  });
+
   const [dragActiveId, setDragActiveId] = useState<number | null>(null);
+  const [historyBusyId, setHistoryBusyId] = useState<number | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -96,8 +106,16 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
   const { active: activeTasks, completed: completedTasks } = splitByCompletion(tasks);
 
   // Filter tasks by quadrant (active tasks only; completed ones live in CompletedSection)
+  // Sorted to mirror the server's own ordering (dueDate first, then order) so that
+  // optimistic `order` rewrites in handleDragEnd actually change visual position.
   const tasksByQuadrant = (quadrant: Quadrant) =>
-    activeTasks.filter((task) => task.quadrant === quadrant);
+    activeTasks
+      .filter((task) => task.quadrant === quadrant)
+      .sort((a, b) => {
+        const da = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+        const db_ = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+        return da !== db_ ? da - db_ : (a.order ?? 0) - (b.order ?? 0);
+      });
 
   const findQuadrantOfTask = (id: number): Quadrant | null => {
     const task = activeTasks.find((t) => t.id === id);
@@ -133,6 +151,7 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
       if (overTaskId === null) return;
       const orderedIds = computeQuadrantReorder(tasksByQuadrant(sourceQuadrant), activeId, overTaskId);
       if (!orderedIds) return;
+      void utils.tasks.list.cancel(queryInput);
       utils.tasks.list.setData(queryInput, (old) => {
         if (!old) return old;
         return old.map((t) => {
@@ -148,6 +167,7 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
         tasksByQuadrant(targetQuadrant).map((t) => t.id),
         overTaskId
       );
+      void utils.tasks.list.cancel(queryInput);
       utils.tasks.list.setData(queryInput, (old) => {
         if (!old) return old;
         return old.map((t) => {
@@ -158,12 +178,9 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
           return pos === -1 ? t : { ...t, order: pos };
         });
       });
-      updateTaskMutation.mutate(update, {
+      moveTaskMutation.mutate(update, {
         onSuccess: () => {
           reorderDayMutation.mutate({ orderedIds });
-        },
-        onError: () => {
-          utils.tasks.list.invalidate({ category: "eisenhower" });
         },
       });
     }
@@ -326,16 +343,24 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
       {/* 已完成歷史區 */}
       <CompletedSection
         tasks={completedTasks}
-        onRestore={(id) =>
+        onRestore={(id) => {
+          setHistoryBusyId(id);
           updateTaskMutation.mutate(
             { id, completed: false },
-            { onSuccess: () => toast.success("已復原") }
-          )
-        }
-        onDelete={(task) =>
-          deleteTaskMutation.mutate({ id: task.id, dueDate: task.dueDate ?? undefined })
-        }
-        isBusy={updateTaskMutation.isPending || deleteTaskMutation.isPending}
+            {
+              onSuccess: () => toast.success("已復原"),
+              onSettled: () => setHistoryBusyId(null),
+            }
+          );
+        }}
+        onDelete={(task) => {
+          setHistoryBusyId(task.id);
+          deleteTaskMutation.mutate(
+            { id: task.id, dueDate: task.dueDate ?? undefined },
+            { onSettled: () => setHistoryBusyId(null) }
+          );
+        }}
+        busyId={historyBusyId}
       />
 
       <TaskNotesModal
