@@ -21,7 +21,7 @@ Matrix 頁([EisenhowerMatrix.tsx](../../../client/src/pages/EisenhowerMatrix.tsx
 - 歷史區:整個矩陣下方一個共用區(非每象限一個)。
 - 歷史區操作:復原 + 刪除(刪除需確認對話框)。
 - 拖拉:同象限內排序 + 跨象限移動。
-- 方案:純前端重組 + 沿用現有 API,後端零改動。
+- 方案:純前端重組 + 沿用現有 API。後端近零改動:`tasks.update` 的 zod schema 需補上 `quadrant` 欄位(一行,現只有 `tasks.create` 收此欄位);db 層 `updateTask` 已是 Partial 傳遞,不用改。資料庫 schema 不動。
 
 ## 現有基礎(全部沿用)
 
@@ -59,7 +59,8 @@ Matrix 頁([EisenhowerMatrix.tsx](../../../client/src/pages/EisenhowerMatrix.tsx
 
 ### 4. 後端
 
-零改動。
+僅一行:`server/routers.ts` 的 `tasks.update` input 增加
+`quadrant: z.enum(["urgent-important", "not-urgent-important", "urgent-not-important", "not-urgent-not-important"]).optional()`(與 `tasks.create` 的定義一致)。資料庫 schema 與 db 層函式不變。
 
 ### 5. 錯誤處理
 
