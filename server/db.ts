@@ -1,9 +1,9 @@
-import { eq, and, asc, desc, isNull, inArray, notInArray, gte, lt } from "drizzle-orm";
+import { eq, and, or, asc, desc, isNull, inArray, notInArray, gte, lt } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { InsertUser, users, tasks, Task, InsertTask, bannerQuotes, recurringTasks, RecurringTask, InsertRecurringTask, annualGoals, AnnualGoal, InsertAnnualGoal, goalMilestones, GoalMilestone, InsertGoalMilestone, trackingItems, TrackingItem, InsertTrackingItem, trackingRecords, InsertTrackingRecord, deletedRecurringInstances, workspaces, workspaceMembers, projects, Project, tags, taskTags, Tag, placeholderMembers, attachments, comments, notes, Note, frameworks, problemSolutions, problemMessages, type InsertFramework, type InsertProblemSolution, type InsertProblemMessage } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { applyStatusCompletionSync } from "./taskStatus";
-import { weekWindow } from "./weekWindow";
+import { weekWindow, isWithinWeek } from "./weekWindow";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -100,15 +100,22 @@ export async function getUserTasks(userId: number, category?: 'work' | 'life' | 
   }
 
   const conditions: any[] = [eq(tasks.userId, userId)];
-  
+  const window = date ? weekWindow(date) : undefined;
+
   if (category) {
     conditions.push(eq(tasks.category, category));
   }
 
-  if (date) {
-    const { start, end } = weekWindow(date);
-    conditions.push(gte(tasks.dueDate, start));
-    conditions.push(lt(tasks.dueDate, end));
+  if (window) {
+    // Undated tasks must remain visible rather than silently vanishing from
+    // every week (NULL comparisons in SQL are UNKNOWN, not true), so they're
+    // included alongside tasks whose dueDate falls inside the window.
+    conditions.push(
+      or(
+        and(gte(tasks.dueDate, window.start), lt(tasks.dueDate, window.end)),
+        isNull(tasks.dueDate)
+      )!
+    );
   }
 
   try {
@@ -145,7 +152,13 @@ export async function getUserTasks(userId: number, category?: 'work' | 'life' | 
       const checkDate = new Date(today);
       checkDate.setDate(checkDate.getDate() + dayOffset);
       const dayOfWeek = checkDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      
+
+      // When a week window was requested, virtual rows must be scoped to
+      // that same window rather than always spanning 90 days from today.
+      if (window && !isWithinWeek(checkDate, window)) {
+        continue;
+      }
+
       for (const recurringTask of recurringTasksList) {
         let shouldInclude = false;
         
