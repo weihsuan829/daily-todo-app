@@ -1,4 +1,17 @@
 import { useState } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +21,7 @@ import { toast } from "sonner";
 import { TaskNotesModal } from "@/components/TaskNotesModal";
 import { canOpenTaskNotes } from "@/lib/canOpenTaskNotes";
 import { QUADRANTS, type Quadrant } from "@/lib/quadrants";
-import { splitByCompletion } from "@/lib/matrixDnd";
+import { splitByCompletion, computeQuadrantReorder, computeCrossQuadrantMove } from "@/lib/matrixDnd";
 import { CompletedSection } from "@/components/matrix/CompletedSection";
 
 interface EisenhowerMatrixProps {
@@ -65,11 +78,95 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
     },
   });
 
+  const reorderDayMutation = trpc.tasks.reorderDay.useMutation({
+    onSuccess: () => {
+      utils.tasks.list.invalidate({ category: "eisenhower" });
+    },
+    onError: () => {
+      utils.tasks.list.invalidate({ category: "eisenhower" });
+      toast.error("排序失敗");
+    },
+  });
+
+  const [dragActiveId, setDragActiveId] = useState<number | null>(null);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
   const { active: activeTasks, completed: completedTasks } = splitByCompletion(tasks);
 
   // Filter tasks by quadrant (active tasks only; completed ones live in CompletedSection)
   const tasksByQuadrant = (quadrant: Quadrant) =>
     activeTasks.filter((task) => task.quadrant === quadrant);
+
+  const findQuadrantOfTask = (id: number): Quadrant | null => {
+    const task = activeTasks.find((t) => t.id === id);
+    return (task?.quadrant as Quadrant) ?? null;
+  };
+
+  const queryInput = { category: "eisenhower" as const, date: selectedDate };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setDragActiveId(event.active.id as number);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    setDragActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+    const activeId = active.id as number;
+    const sourceQuadrant = findQuadrantOfTask(activeId);
+    if (!sourceQuadrant) return;
+
+    const overId = over.id as string | number;
+    let targetQuadrant: Quadrant | null = null;
+    let overTaskId: number | null = null;
+    if (typeof overId === "string" && overId.startsWith("quadrant-")) {
+      targetQuadrant = overId.replace("quadrant-", "") as Quadrant;
+    } else if (typeof overId === "number") {
+      targetQuadrant = findQuadrantOfTask(overId);
+      overTaskId = overId;
+    }
+    if (!targetQuadrant) return;
+
+    if (targetQuadrant === sourceQuadrant) {
+      if (overTaskId === null) return;
+      const orderedIds = computeQuadrantReorder(tasksByQuadrant(sourceQuadrant), activeId, overTaskId);
+      if (!orderedIds) return;
+      utils.tasks.list.setData(queryInput, (old) => {
+        if (!old) return old;
+        return old.map((t) => {
+          const pos = orderedIds.indexOf(t.id);
+          return pos === -1 ? t : { ...t, order: pos };
+        });
+      });
+      reorderDayMutation.mutate({ orderedIds });
+    } else {
+      const { update, orderedIds } = computeCrossQuadrantMove(
+        activeId,
+        targetQuadrant,
+        tasksByQuadrant(targetQuadrant).map((t) => t.id),
+        overTaskId
+      );
+      utils.tasks.list.setData(queryInput, (old) => {
+        if (!old) return old;
+        return old.map((t) => {
+          const pos = orderedIds.indexOf(t.id);
+          if (t.id === activeId) {
+            return { ...t, quadrant: update.quadrant, priority: update.priority, order: pos };
+          }
+          return pos === -1 ? t : { ...t, order: pos };
+        });
+      });
+      updateTaskMutation.mutate(update, {
+        onSuccess: () => {
+          reorderDayMutation.mutate({ orderedIds });
+        },
+      });
+    }
+  };
+
+  const dragActiveTask = dragActiveId != null ? activeTasks.find((t) => t.id === dragActiveId) : null;
 
   const handleAddTask = async (quadrant: Quadrant) => {
     const title = newTasks[quadrant].trim();
@@ -93,8 +190,14 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
   return (
     <div className="space-y-6">
       {/* 四象限網格 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {QUADRANTS.map((quadrant) => (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {QUADRANTS.map((quadrant) => (
           <Card
             key={quadrant.key}
             className={`border ${quadrant.borderColor} ${quadrant.bgColor} p-4 flex flex-col overflow-hidden`}
@@ -115,63 +218,67 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
             </div>
 
             {/* 任務列表 */}
-            <div className="mb-3 space-y-2 flex-1">
-              {tasksByQuadrant(quadrant.key).length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-2">暂無任務</p>
-              ) : (
-                tasksByQuadrant(quadrant.key).map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-2 rounded bg-white p-2 text-xs group hover:bg-gray-50"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={task.completed}
-                      onChange={() => {
-                        updateTaskMutation.mutate({
-                          id: task.id,
-                          completed: !task.completed,
-                        });
-                      }}
-                      className="rounded"
-                    />
-                    <span
-                      onClick={canOpenTaskNotes(task) ? () => setNotesTask(task) : undefined}
-                      className={`flex-1 ${canOpenTaskNotes(task) ? "cursor-pointer" : ""} ${
-                        task.completed
-                          ? "line-through text-gray-400"
-                          : "text-gray-900"
-                      }`}
-                    >
-                      {task.title}
-                      {task.description ? (
-                        <FileText className="inline-block w-3 h-3 ml-1 text-gray-400 align-[-1px]" />
-                      ) : null}
-                    </span>
-                    {canOpenTaskNotes(task) && (
-                      <button
-                        onClick={() => setNotesTask(task)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="編輯筆記"
-                      >
-                        <FileText className="w-3 h-3 text-gray-400 hover:text-blue-500" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        deleteTaskMutation.mutate({
-                          id: task.id,
-                          dueDate: task.dueDate,
-                        });
-                      }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
+            <DroppableQuadrant quadrant={quadrant.key}>
+              <SortableContext
+                items={tasksByQuadrant(quadrant.key).map((t) => t.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {tasksByQuadrant(quadrant.key).length === 0 ? (
+                  <p className="text-xs text-gray-400 text-center py-2">暂無任務</p>
+                ) : (
+                  tasksByQuadrant(quadrant.key).map((task) => (
+                    <SortableTaskRow key={task.id} id={task.id}>
+                      <div className="flex items-center gap-2 rounded bg-white p-2 text-xs group hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={task.completed}
+                          onChange={() => {
+                            updateTaskMutation.mutate({
+                              id: task.id,
+                              completed: !task.completed,
+                            });
+                          }}
+                          className="rounded"
+                        />
+                        <span
+                          onClick={canOpenTaskNotes(task) ? () => setNotesTask(task) : undefined}
+                          className={`flex-1 ${canOpenTaskNotes(task) ? "cursor-pointer" : ""} ${
+                            task.completed
+                              ? "line-through text-gray-400"
+                              : "text-gray-900"
+                          }`}
+                        >
+                          {task.title}
+                          {task.description ? (
+                            <FileText className="inline-block w-3 h-3 ml-1 text-gray-400 align-[-1px]" />
+                          ) : null}
+                        </span>
+                        {canOpenTaskNotes(task) && (
+                          <button
+                            onClick={() => setNotesTask(task)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity"
+                            title="編輯筆記"
+                          >
+                            <FileText className="w-3 h-3 text-gray-400 hover:text-blue-500" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            deleteTaskMutation.mutate({
+                              id: task.id,
+                              dueDate: task.dueDate,
+                            });
+                          }}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
+                        </button>
+                      </div>
+                    </SortableTaskRow>
+                  ))
+                )}
+              </SortableContext>
+            </DroppableQuadrant>
 
             {/* 新增任務輸入 */}
             <div className="flex gap-2">
@@ -204,6 +311,15 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
         ))}
       </div>
 
+        <DragOverlay>
+          {dragActiveTask ? (
+            <div className="flex items-center gap-2 rounded bg-white p-2 text-xs shadow-lg border border-slate-200 opacity-90">
+              <span className="text-gray-900">{dragActiveTask.title}</span>
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
       {/* 已完成歷史區 */}
       <CompletedSection
         tasks={completedTasks}
@@ -233,6 +349,32 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
         }}
         isSaving={updateTaskMutation.isPending}
       />
+    </div>
+  );
+}
+
+function SortableTaskRow({ id, children }: { id: number; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  );
+}
+
+function DroppableQuadrant({ quadrant, children }: { quadrant: Quadrant; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `quadrant-${quadrant}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`mb-3 space-y-2 flex-1 min-h-[40px] rounded transition-colors ${isOver ? "bg-blue-100/20" : ""}`}
+    >
+      {children}
     </div>
   );
 }
