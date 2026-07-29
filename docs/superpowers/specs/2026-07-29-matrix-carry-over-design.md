@@ -44,7 +44,7 @@ completed = false  OR  completedAt 在週窗內  OR  completedAt IS NULL
 
 現行排序為「先 `dueDate`、再 `order`」。過去同一週的任務 `dueDate` 相同,所以實際等同只看 `order`。改動後象限會混入不同週的任務,`dueDate` 會升為主要排序鍵,導致**跨週拖拉排序無法生效**(放開後彈回原位)——與先前修掉的「樂觀更新無效」屬同一類問題。
 
-因此象限排序改為**只依 `order`**;`order` 相同時維持伺服器回傳順序(SQL 已是 `ORDER BY order ASC, createdAt DESC`,而 `Array.prototype.sort` 穩定,故並列項目保持 createdAt 遞減)。
+因此象限排序改為**只依 `order`**;`Array.prototype.sort` 穩定,故 `order` 相同時只保證維持伺服器回傳陣列中的相對順序——`getUserTasks` 會重新組合並排序 regular + virtual 任務陣列後才回傳,不等同 SQL 的 `ORDER BY`,因此不宣稱任何特定的伺服器排序依據(例如 createdAt)。
 
 `order` 值原本是各週各自從 0 編號,混合後會有重複。真正防止碰撞的是建立時的行為改動(見下方 Fix 2):新任務一律取該象限現有未完成任務的 `max(order)+1`,而非每天各自從 0 起算;若只靠拖拉重新編號,下一週的新建任務仍會從 0 重新開始,碰撞會再次發生,無法自行收斂。
 
@@ -74,7 +74,7 @@ completed = false  OR  completedAt 在週窗內  OR  completedAt IS NULL
 
 未完成任務會持續累積在象限中,不因週次推進而消失。這是使用者明確選擇的行為,代價是象限可能愈來愈長,清理需靠完成或刪除。本次不實作自動封存或數量上限(YAGNI)。
 
-`tasks(userId, category, dueDate)` 目前沒有索引,而未完成任務的查詢集合會隨時間單調增長(carry-over 讓舊任務持續留在結果裡)。現有規模下無影響,但值得記錄,供未來規模變大時參考。
+`tasks(userId, category, completed, completedAt)` 目前沒有索引——這才是週窗述詞實際用到的欄位組合,而未完成任務的查詢集合會隨時間單調增長(carry-over 讓舊任務持續留在結果裡)。現有規模下無影響,但值得記錄,供未來規模變大時參考。
 
 ## 不做的事
 

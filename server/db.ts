@@ -270,7 +270,10 @@ export async function createTask(userId: number, task: Omit<InsertTask, 'userId'
       // below) would restart at 0 every week and interleave new tasks into
       // the middle of the quadrant instead of appending them at the bottom.
       // So for quadrant tasks, order over the user's unfinished tasks in the
-      // same quadrant, regardless of dueDate.
+      // same quadrant, regardless of dueDate. Scoped to the same category too:
+      // `tasks.update` accepts `category` and `quadrant` independently, so a
+      // non-eisenhower task could in principle acquire a quadrant, and without
+      // this condition it would pollute the counter for an unrelated category.
       const quadrantTasks = await db
         .select()
         .from(tasks)
@@ -278,7 +281,10 @@ export async function createTask(userId: number, task: Omit<InsertTask, 'userId'
           and(
             eq(tasks.userId, userId),
             eq(tasks.quadrant, task.quadrant),
-            eq(tasks.completed, false)
+            eq(tasks.completed, false),
+            task.category != null
+              ? eq(tasks.category, task.category)
+              : isNull(tasks.category)
           )
         );
 

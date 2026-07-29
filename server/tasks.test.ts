@@ -213,6 +213,12 @@ describe("tasks router", () => {
     const openInWeekTitle = "CarryOver IntegTest Open-InWeek";
     const openNextWeekTitle = "CarryOver IntegTest Open-NextWeek";
     const openUndatedTitle = "CarryOver IntegTest Open-Undated";
+    // Unfinished, but with a non-null completedAt OUTSIDE the window. Only the
+    // `eq(tasks.completed, false)` disjunct can return this row: the
+    // `and(gte, lt)` disjunct needs completedAt inside the window, and
+    // `isNull(completedAt)` needs no completedAt at all. This pins that
+    // disjunct as load-bearing rather than merely asserted-but-redundant.
+    const openStaleCompletedAtTitle = "CarryOver IntegTest Open-StaleCompletedAt";
     const doneInWeekTitle = "CarryOver IntegTest Done-InWeek"; // completedAt inside window
     const doneBoundaryStartTitle = "CarryOver IntegTest Done-BoundaryStart"; // completedAt == weekStart
     const doneBoundaryEndTitle = "CarryOver IntegTest Done-BoundaryEnd"; // completedAt == weekStart + 7d
@@ -256,6 +262,14 @@ describe("tasks router", () => {
       await createTask(openNextWeekTitle, nextWeekDate);
       await createTask(openUndatedTitle);
 
+      // Unfinished task with a stale completedAt outside the window. Created
+      // normally (so `completed` stays false), then given a completedAt via a
+      // direct db.updateTask call — that payload contains neither `completed`
+      // nor `status`, so it bypasses applyStatusCompletionSync's rewrite and
+      // leaves `completed: false` in place while still stamping completedAt.
+      const openStaleCompletedAtId = await createTask(openStaleCompletedAtTitle);
+      await updateTask(openStaleCompletedAtId, ctx.user.id, { completedAt: prevWeekDate });
+
       // Finished rows: created, then marked complete through the real mutation
       // so `status`/`completed` are set the same way the app sets them. The
       // mutation stamps `completedAt` with the real current time, which is
@@ -289,6 +303,13 @@ describe("tasks router", () => {
       expect(windowedTitles).toContain(openNextWeekTitle);
       expect(windowedTitles).toContain(openUndatedTitle);
 
+      // Pins the `eq(tasks.completed, false)` disjunct: an unfinished task
+      // with a non-null completedAt outside the window can ONLY be returned
+      // by that disjunct (see comment on the fixture declaration above).
+      // Deleting `eq(tasks.completed, false)` from the predicate makes this
+      // assertion fail.
+      expect(windowedTitles).toContain(openStaleCompletedAtTitle);
+
       // Finished tasks are scoped by completedAt. Boundary-start (== weekStart)
       // is inside; boundary-end (== weekStart + 7 days) is outside. These two
       // pin the half-open window: `lte` instead of `lt`, or `gt` instead of
@@ -316,6 +337,7 @@ describe("tasks router", () => {
         openInWeekTitle,
         openNextWeekTitle,
         openUndatedTitle,
+        openStaleCompletedAtTitle,
         doneInWeekTitle,
         doneBoundaryStartTitle,
         doneBoundaryEndTitle,
