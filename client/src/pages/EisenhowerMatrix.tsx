@@ -23,6 +23,7 @@ import { canOpenTaskNotes } from "@/lib/canOpenTaskNotes";
 import { QUADRANTS, type Quadrant } from "@/lib/quadrants";
 import { splitByCompletion, computeQuadrantReorder, computeCrossQuadrantMove } from "@/lib/matrixDnd";
 import { CompletedSection } from "@/components/matrix/CompletedSection";
+import { ConfirmDeleteDialog } from "@/components/matrix/ConfirmDeleteDialog";
 
 interface EisenhowerMatrixProps {
   selectedDate: Date;
@@ -46,6 +47,7 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
   });
 
   const [notesTask, setNotesTask] = useState<(typeof tasks)[number] | null>(null);
+  const [pendingDeleteTask, setPendingDeleteTask] = useState<(typeof tasks)[number] | null>(null);
 
   const createTaskMutation = trpc.tasks.create.useMutation({
     onSuccess: () => {
@@ -283,13 +285,9 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
                           </button>
                         )}
                         <button
-                          onClick={() => {
-                            deleteTaskMutation.mutate({
-                              id: task.id,
-                              dueDate: task.dueDate,
-                            });
-                          }}
+                          onClick={() => setPendingDeleteTask(task)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="刪除"
                         >
                           <X className="w-3 h-3 text-gray-400 hover:text-red-500" />
                         </button>
@@ -376,6 +374,21 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
           });
         }}
         isSaving={updateTaskMutation.isPending}
+      />
+
+      <ConfirmDeleteDialog
+        taskTitle={pendingDeleteTask?.title ?? null}
+        open={pendingDeleteTask !== null}
+        onCancel={() => setPendingDeleteTask(null)}
+        onConfirm={() => {
+          if (pendingDeleteTask) {
+            deleteTaskMutation.mutate({
+              id: pendingDeleteTask.id,
+              dueDate: pendingDeleteTask.dueDate ?? undefined,
+            });
+          }
+          setPendingDeleteTask(null);
+        }}
       />
     </div>
   );
