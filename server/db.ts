@@ -115,11 +115,16 @@ export async function getUserTasks(userId: number, category?: 'work' | 'life' | 
   }
 
   if (window) {
+    // Unfinished tasks are the whole point of the board, so they must stay
+    // visible no matter which week is being viewed — otherwise they silently
+    // vanish the moment the week rolls over. Only finished tasks are
+    // week-scoped, which is what keeps the completed history bounded.
     // Undated tasks must remain visible rather than silently vanishing from
     // every week (NULL comparisons in SQL are UNKNOWN, not true), so they're
     // included alongside tasks whose dueDate falls inside the window.
     conditions.push(
       or(
+        eq(tasks.completed, false),
         and(gte(tasks.dueDate, window.start), lt(tasks.dueDate, window.end)),
         isNull(tasks.dueDate)
       )!

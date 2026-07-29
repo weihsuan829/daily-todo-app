@@ -193,14 +193,19 @@ describe("tasks router", () => {
     const weekStart = new Date(2026, 0, 5); // Monday 2026-01-05, local midnight
     const inWeekDate = new Date(2026, 0, 7); // Wednesday, same week
     const nextWeekDate = new Date(2026, 0, 13); // 8 days after weekStart: outside the window
-    const boundaryStartDate = new Date(2026, 0, 5); // Exactly at week start (Monday): must appear
-    const boundaryEndDate = new Date(2026, 0, 12); // Exactly at week start + 7 days: must NOT appear
+    const boundaryStartDate = new Date(2026, 0, 5); // Exactly at week start: inside
+    const boundaryEndDate = new Date(2026, 0, 12); // Exactly weekStart + 7 days: outside
 
-    const inWeekTitle = "WeekScope IntegTest In-Week";
-    const nextWeekTitle = "WeekScope IntegTest Next-Week";
-    const undatedTitle = "WeekScope IntegTest Undated";
-    const boundaryStartTitle = "WeekScope IntegTest Boundary-Start";
-    const boundaryEndTitle = "WeekScope IntegTest Boundary-End";
+    // Unfinished tasks carry over: they must surface in every week regardless
+    // of dueDate. Finished tasks stay week-scoped, so they are what pins the
+    // window's half-open boundaries.
+    const openInWeekTitle = "CarryOver IntegTest Open-InWeek";
+    const openNextWeekTitle = "CarryOver IntegTest Open-NextWeek";
+    const openUndatedTitle = "CarryOver IntegTest Open-Undated";
+    const doneInWeekTitle = "CarryOver IntegTest Done-InWeek";
+    const doneBoundaryStartTitle = "CarryOver IntegTest Done-BoundaryStart";
+    const doneBoundaryEndTitle = "CarryOver IntegTest Done-BoundaryEnd";
+    const doneUndatedTitle = "CarryOver IntegTest Done-Undated";
 
     const createdIds: number[] = [];
 
@@ -216,70 +221,73 @@ describe("tasks router", () => {
       }
     });
 
-    it("scopes results to the requested week while still surfacing undated tasks, and returns everything when no week is given", async () => {
+    it("carries unfinished tasks into every week, keeps finished tasks week-scoped, and returns everything when no week is given", async () => {
       const { ctx } = createTaskContext();
       const caller = appRouter.createCaller(ctx);
 
-      const inWeekResult = await caller.tasks.create({
-        category: "eisenhower",
-        title: inWeekTitle,
-        priority: "medium",
-        dueDate: inWeekDate,
-      });
-      const nextWeekResult = await caller.tasks.create({
-        category: "eisenhower",
-        title: nextWeekTitle,
-        priority: "medium",
-        dueDate: nextWeekDate,
-      });
-      const undatedResult = await caller.tasks.create({
-        category: "eisenhower",
-        title: undatedTitle,
-        priority: "medium",
-      });
-      const boundaryStartResult = await caller.tasks.create({
-        category: "eisenhower",
-        title: boundaryStartTitle,
-        priority: "medium",
-        dueDate: boundaryStartDate,
-      });
-      const boundaryEndResult = await caller.tasks.create({
-        category: "eisenhower",
-        title: boundaryEndTitle,
-        priority: "medium",
-        dueDate: boundaryEndDate,
-      });
+      async function createTask(title: string, dueDate?: Date): Promise<number> {
+        const result = await caller.tasks.create({
+          category: "eisenhower",
+          title,
+          priority: "medium",
+          ...(dueDate ? { dueDate } : {}),
+        });
+        const id = extractInsertId(result);
+        expect(id).not.toBeNull();
+        createdIds.push(id!);
+        return id!;
+      }
 
-      const inWeekId = extractInsertId(inWeekResult);
-      const nextWeekId = extractInsertId(nextWeekResult);
-      const undatedId = extractInsertId(undatedResult);
-      const boundaryStartId = extractInsertId(boundaryStartResult);
-      const boundaryEndId = extractInsertId(boundaryEndResult);
-      expect(inWeekId).not.toBeNull();
-      expect(nextWeekId).not.toBeNull();
-      expect(undatedId).not.toBeNull();
-      expect(boundaryStartId).not.toBeNull();
-      expect(boundaryEndId).not.toBeNull();
-      createdIds.push(inWeekId!, nextWeekId!, undatedId!, boundaryStartId!, boundaryEndId!);
+      // Unfinished rows.
+      await createTask(openInWeekTitle, inWeekDate);
+      await createTask(openNextWeekTitle, nextWeekDate);
+      await createTask(openUndatedTitle);
 
-      // Windowed query: the in-week task, boundary-start task, and the undated task must appear;
-      // the next-week task and boundary-end task must not.
+      // Finished rows: created, then marked complete through the real mutation
+      // so completedAt/status are set the same way the app sets them.
+      const doneInWeekId = await createTask(doneInWeekTitle, inWeekDate);
+      const doneBoundaryStartId = await createTask(doneBoundaryStartTitle, boundaryStartDate);
+      const doneBoundaryEndId = await createTask(doneBoundaryEndTitle, boundaryEndDate);
+      const doneUndatedId = await createTask(doneUndatedTitle);
+      for (const id of [doneInWeekId, doneBoundaryStartId, doneBoundaryEndId, doneUndatedId]) {
+        await caller.tasks.update({ id, completed: true });
+      }
+
       const windowed = await caller.tasks.list({ category: "eisenhower", date: weekStart });
       const windowedTitles = windowed.map((t) => t.title);
-      expect(windowedTitles).toContain(inWeekTitle);
-      expect(windowedTitles).toContain(undatedTitle);
-      expect(windowedTitles).toContain(boundaryStartTitle);
-      expect(windowedTitles).not.toContain(nextWeekTitle);
-      expect(windowedTitles).not.toContain(boundaryEndTitle);
 
-      // No date given: every task is returned, regardless of dueDate.
+      // Unfinished tasks surface no matter which week is requested — this is
+      // the whole point of the carry-over behavior.
+      expect(windowedTitles).toContain(openInWeekTitle);
+      expect(windowedTitles).toContain(openNextWeekTitle);
+      expect(windowedTitles).toContain(openUndatedTitle);
+
+      // Finished tasks are week-scoped. Boundary-start (== weekStart) is inside;
+      // boundary-end (== weekStart + 7 days) is outside. These two pin the
+      // half-open window: `lte` instead of `lt`, or `gt` instead of `gte`,
+      // would flip one of them.
+      expect(windowedTitles).toContain(doneInWeekTitle);
+      expect(windowedTitles).toContain(doneBoundaryStartTitle);
+      expect(windowedTitles).not.toContain(doneBoundaryEndTitle);
+
+      // Undated tasks stay visible every week whether or not they are finished:
+      // NULL comparisons in SQL are UNKNOWN, so they need their own branch.
+      expect(windowedTitles).toContain(doneUndatedTitle);
+
+      // No date given: every task is returned, regardless of dueDate or status.
       const all = await caller.tasks.list({ category: "eisenhower" });
       const allTitles = all.map((t) => t.title);
-      expect(allTitles).toContain(inWeekTitle);
-      expect(allTitles).toContain(nextWeekTitle);
-      expect(allTitles).toContain(undatedTitle);
-      expect(allTitles).toContain(boundaryStartTitle);
-      expect(allTitles).toContain(boundaryEndTitle);
+      for (const title of [
+        openInWeekTitle,
+        openNextWeekTitle,
+        openUndatedTitle,
+        doneInWeekTitle,
+        doneBoundaryStartTitle,
+        doneBoundaryEndTitle,
+        doneUndatedTitle,
+      ]) {
+        expect(allTitles).toContain(title);
+      }
     });
   });
 });
