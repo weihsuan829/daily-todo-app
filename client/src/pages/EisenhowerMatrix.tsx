@@ -113,8 +113,10 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
   // sorting by dueDate first would demote `order` to a within-week tiebreaker
   // and drag-reordering across a dueDate boundary would snap back. Sorting on
   // `order` alone keeps the optimistic `order` rewrites in handleDragEnd
-  // visually effective; equal `order` values keep the server's
-  // ORDER BY order ASC, createdAt DESC because Array#sort is stable.
+  // visually effective; Array#sort is stable, so any tasks tied on `order`
+  // simply keep whatever relative order getUserTasks returned them in (it
+  // re-sorts the combined regular + virtual task list itself, so this is not
+  // necessarily the SQL ORDER BY).
   const tasksByQuadrant = (quadrant: Quadrant) =>
     activeTasks
       .filter((task) => task.quadrant === quadrant)

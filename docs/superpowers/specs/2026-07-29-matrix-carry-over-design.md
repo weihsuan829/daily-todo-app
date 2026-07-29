@@ -44,7 +44,7 @@ completed = false  OR  dueDate 在週窗內  OR  dueDate IS NULL
 
 因此象限排序改為**只依 `order`**;`order` 相同時維持伺服器回傳順序(SQL 已是 `ORDER BY order ASC, createdAt DESC`,而 `Array.prototype.sort` 穩定,故並列項目保持 createdAt 遞減)。
 
-`order` 值原本是各週各自從 0 編號,混合後會有重複;任何一次拖拉都會對該象限重新從 0 編號,自行收斂,無需資料遷移。
+`order` 值原本是各週各自從 0 編號,混合後會有重複。真正防止碰撞的是建立時的行為改動(見下方 Fix 2):新任務一律取該象限現有未完成任務的 `max(order)+1`,而非每天各自從 0 起算;若只靠拖拉重新編號,下一週的新建任務仍會從 0 重新開始,碰撞會再次發生,無法自行收斂。
 
 ### 3. 已完成區週別標示(client/src/components/matrix/CompletedSection.tsx)
 
@@ -69,6 +69,8 @@ completed = false  OR  dueDate 在週窗內  OR  dueDate IS NULL
 ## 取捨
 
 未完成任務會持續累積在象限中,不因週次推進而消失。這是使用者明確選擇的行為,代價是象限可能愈來愈長,清理需靠完成或刪除。本次不實作自動封存或數量上限(YAGNI)。
+
+`tasks(userId, category, dueDate)` 目前沒有索引,而未完成任務的查詢集合會隨時間單調增長(carry-over 讓舊任務持續留在結果裡)。現有規模下無影響,但值得記錄,供未來規模變大時參考。
 
 ## 不做的事
 
