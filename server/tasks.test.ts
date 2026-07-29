@@ -191,6 +191,7 @@ describe("tasks router", () => {
     // only real caller's contract) rather than "today", which would make the
     // test's pass/fail depend on which day it happens to run.
     const weekStart = new Date(2026, 0, 5); // Monday 2026-01-05, local midnight
+    const prevWeekDate = new Date(2025, 11, 30); // Tuesday 2025-12-30, before weekStart
     const inWeekDate = new Date(2026, 0, 7); // Wednesday, same week
     const nextWeekDate = new Date(2026, 0, 13); // 8 days after weekStart: outside the window
     const boundaryStartDate = new Date(2026, 0, 5); // Exactly at week start: inside
@@ -199,6 +200,7 @@ describe("tasks router", () => {
     // Unfinished tasks carry over: they must surface in every week regardless
     // of dueDate. Finished tasks stay week-scoped, so they are what pins the
     // window's half-open boundaries.
+    const openPrevWeekTitle = "CarryOver IntegTest Open-PrevWeek";
     const openInWeekTitle = "CarryOver IntegTest Open-InWeek";
     const openNextWeekTitle = "CarryOver IntegTest Open-NextWeek";
     const openUndatedTitle = "CarryOver IntegTest Open-Undated";
@@ -239,6 +241,7 @@ describe("tasks router", () => {
       }
 
       // Unfinished rows.
+      await createTask(openPrevWeekTitle, prevWeekDate);
       await createTask(openInWeekTitle, inWeekDate);
       await createTask(openNextWeekTitle, nextWeekDate);
       await createTask(openUndatedTitle);
@@ -258,6 +261,7 @@ describe("tasks router", () => {
 
       // Unfinished tasks surface no matter which week is requested — this is
       // the whole point of the carry-over behavior.
+      expect(windowedTitles).toContain(openPrevWeekTitle);
       expect(windowedTitles).toContain(openInWeekTitle);
       expect(windowedTitles).toContain(openNextWeekTitle);
       expect(windowedTitles).toContain(openUndatedTitle);
@@ -278,6 +282,7 @@ describe("tasks router", () => {
       const all = await caller.tasks.list({ category: "eisenhower" });
       const allTitles = all.map((t) => t.title);
       for (const title of [
+        openPrevWeekTitle,
         openInWeekTitle,
         openNextWeekTitle,
         openUndatedTitle,

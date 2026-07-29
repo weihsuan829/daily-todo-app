@@ -95,10 +95,15 @@ export async function getUserByOpenId(openId: string) {
 /**
  * List a user's tasks.
  *
- * @param weekStart When given, results are limited to the 7-day window
- * [weekStart, weekStart + 7 days) plus tasks with no dueDate. Callers MUST pass
- * the first day of the week — the window is anchored on this date, not on the
- * week containing it. Omit it to get every task (Work/Life list, Admin, project pages).
+ * When weekStart is omitted: returns every task (no date filtering).
+ *
+ * When weekStart is given: returns all unfinished tasks (regardless of dueDate,
+ * so they carry over across weeks and won't vanish when the week rolls over),
+ * plus finished tasks whose dueDate falls in [weekStart, weekStart + 7 days),
+ * plus all tasks with no dueDate. Callers MUST pass the first day of the week —
+ * the window is anchored on this exact date, not on the week containing it.
+ *
+ * @param weekStart Optional start date for the week window.
  */
 export async function getUserTasks(userId: number, category?: 'work' | 'life' | 'eisenhower', weekStart?: Date) {
   const db = await getDb();
