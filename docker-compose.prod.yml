@@ -21,7 +21,11 @@ services:
       retries: 20
 
   app:
-    build: .
+    build:
+      context: .
+      # Must be explicit: the Dockerfile's last stage is `dev`, so an
+      # unpinned build would produce a dev image here (CMD pnpm dev).
+      target: runtime
     image: daily-todo-app:prod
     container_name: daily-todo-app-prod
     restart: unless-stopped
