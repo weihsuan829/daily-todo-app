@@ -95,10 +95,16 @@ export async function getUserByOpenId(openId: string) {
 /**
  * List a user's tasks.
  *
- * @param weekStart When given, results are limited to the 7-day window
- * [weekStart, weekStart + 7 days) plus tasks with no dueDate. Callers MUST pass
- * the first day of the week — the window is anchored on this date, not on the
- * week containing it. Omit it to get every task (Work/Life list, Admin, project pages).
+ * When weekStart is omitted: returns every task (no date filtering).
+ *
+ * When weekStart is given: returns all unfinished tasks (regardless of dueDate,
+ * so they carry over across weeks and won't vanish when the week rolls over),
+ * plus finished tasks whose completedAt falls in [weekStart, weekStart + 7 days),
+ * plus all tasks with no completedAt (e.g. legacy rows completed before this
+ * column was populated). Callers MUST pass the first day of the week —
+ * the window is anchored on this exact date, not on the week containing it.
+ *
+ * @param weekStart Optional start date for the week window.
  */
 export async function getUserTasks(userId: number, category?: 'work' | 'life' | 'eisenhower', weekStart?: Date) {
   const db = await getDb();
@@ -115,13 +121,23 @@ export async function getUserTasks(userId: number, category?: 'work' | 'life' | 
   }
 
   if (window) {
-    // Undated tasks must remain visible rather than silently vanishing from
+    // Unfinished tasks are the whole point of the board, so they must stay
+    // visible no matter which week is being viewed — otherwise they silently
+    // vanish the moment the week rolls over. Only finished tasks are
+    // week-scoped, which is what keeps the completed history bounded.
+    // Scoping is by completedAt, not dueDate: dueDate is the week a task was
+    // CREATED, but a carried-over task can be finished many weeks later, and
+    // the completed history should show it in the week it was actually
+    // finished (which is also what it's sorted by — see CompletedSection.tsx).
+    // Rows with no completedAt (legacy rows completed before this column was
+    // populated) must remain visible rather than silently vanishing from
     // every week (NULL comparisons in SQL are UNKNOWN, not true), so they're
-    // included alongside tasks whose dueDate falls inside the window.
+    // included alongside tasks whose completedAt falls inside the window.
     conditions.push(
       or(
-        and(gte(tasks.dueDate, window.start), lt(tasks.dueDate, window.end)),
-        isNull(tasks.dueDate)
+        eq(tasks.completed, false),
+        and(gte(tasks.completedAt, window.start), lt(tasks.completedAt, window.end)),
+        isNull(tasks.completedAt)
       )!
     );
   }
@@ -245,9 +261,35 @@ export async function createTask(userId: number, task: Omit<InsertTask, 'userId'
   }
 
   try {
-    // Calculate the correct order value for tasks on the same day
+    // Calculate the correct order value for the new task.
     let order = task.order || 0;
-    if (task.dueDate) {
+    if (task.quadrant) {
+      // Matrix tasks always create with dueDate = the viewed week's Monday,
+      // and unfinished tasks now carry over across weeks, so a quadrant mixes
+      // many weeks' tasks together. A same-day counter (like the branch
+      // below) would restart at 0 every week and interleave new tasks into
+      // the middle of the quadrant instead of appending them at the bottom.
+      // So for quadrant tasks, order over the user's unfinished tasks in the
+      // same quadrant, regardless of dueDate. Scoped to the same category too:
+      // `tasks.update` accepts `category` and `quadrant` independently, so a
+      // non-eisenhower task could in principle acquire a quadrant, and without
+      // this condition it would pollute the counter for an unrelated category.
+      const quadrantTasks = await db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.userId, userId),
+            eq(tasks.quadrant, task.quadrant),
+            eq(tasks.completed, false),
+            task.category != null
+              ? eq(tasks.category, task.category)
+              : isNull(tasks.category)
+          )
+        );
+
+      order = quadrantTasks.length > 0 ? Math.max(...quadrantTasks.map(t => t.order)) + 1 : 0;
+    } else if (task.dueDate) {
       // Get all tasks for this user on the same day and category
       const existingTasks = await db
         .select()
@@ -260,18 +302,18 @@ export async function createTask(userId: number, task: Omit<InsertTask, 'userId'
               : isNull(tasks.category)
           )
         );
-      
+
       // Filter tasks on the same day
       const taskDate = new Date(task.dueDate);
       taskDate.setHours(0, 0, 0, 0);
-      
+
       const sameDayTasks = existingTasks.filter(t => {
         if (!t.dueDate) return false;
         const existingDate = new Date(t.dueDate);
         existingDate.setHours(0, 0, 0, 0);
         return existingDate.getTime() === taskDate.getTime();
       });
-      
+
       // Find the maximum order value and increment it
       if (sameDayTasks.length > 0) {
         const maxOrder = Math.max(...sameDayTasks.map(t => t.order));

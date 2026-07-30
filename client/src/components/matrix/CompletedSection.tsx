@@ -15,12 +15,15 @@ export interface CompletedTask {
 
 interface CompletedSectionProps {
   tasks: CompletedTask[];
+  /** Week this section is scoped to, e.g. "07/27 - 08/02". The quadrants above
+   *  are not week-scoped, so without this the week arrows look like a no-op. */
+  weekLabel: string;
   onRestore: (id: number) => void;
   onDelete: (task: CompletedTask) => void;
   busyId?: number | null;
 }
 
-export function CompletedSection({ tasks, onRestore, onDelete, busyId = null }: CompletedSectionProps) {
+export function CompletedSection({ tasks, weekLabel, onRestore, onDelete, busyId = null }: CompletedSectionProps) {
   const [pendingDelete, setPendingDelete] = useState<CompletedTask | null>(null);
 
   const sorted = [...tasks].sort(
@@ -31,6 +34,7 @@ export function CompletedSection({ tasks, onRestore, onDelete, busyId = null }: 
     <Card className="border border-slate-200 bg-white p-4">
       <h3 className="text-sm font-bold text-gray-700 mb-2">
         已完成{tasks.length > 0 ? `（${tasks.length}）` : ""}
+        <span className="ml-2 text-xs font-normal text-gray-400">{weekLabel}</span>
       </h3>
 
       {tasks.length === 0 ? (

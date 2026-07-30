@@ -24,6 +24,7 @@ import { QUADRANTS, type Quadrant } from "@/lib/quadrants";
 import { splitByCompletion, computeQuadrantReorder, computeCrossQuadrantMove } from "@/lib/matrixDnd";
 import { CompletedSection } from "@/components/matrix/CompletedSection";
 import { ConfirmDeleteDialog } from "@/components/matrix/ConfirmDeleteDialog";
+import { weekRangeLabel } from "@/lib/weekLabel";
 
 interface EisenhowerMatrixProps {
   selectedDate: Date;
@@ -108,16 +109,18 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
   const { active: activeTasks, completed: completedTasks } = splitByCompletion(tasks);
 
   // Filter tasks by quadrant (active tasks only; completed ones live in CompletedSection)
-  // Sorted to mirror the server's own ordering (dueDate first, then order) so that
-  // optimistic `order` rewrites in handleDragEnd actually change visual position.
+  // Quadrants now mix tasks from many weeks (unfinished ones carry over), so
+  // sorting by dueDate first would demote `order` to a within-week tiebreaker
+  // and drag-reordering across a dueDate boundary would snap back. Sorting on
+  // `order` alone keeps the optimistic `order` rewrites in handleDragEnd
+  // visually effective; Array#sort is stable, so any tasks tied on `order`
+  // simply keep whatever relative order getUserTasks returned them in (it
+  // re-sorts the combined regular + virtual task list itself, so this is not
+  // necessarily the SQL ORDER BY).
   const tasksByQuadrant = (quadrant: Quadrant) =>
     activeTasks
       .filter((task) => task.quadrant === quadrant)
-      .sort((a, b) => {
-        const da = a.dueDate ? new Date(a.dueDate).getTime() : 0;
-        const db_ = b.dueDate ? new Date(b.dueDate).getTime() : 0;
-        return da !== db_ ? da - db_ : (a.order ?? 0) - (b.order ?? 0);
-      });
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const findQuadrantOfTask = (id: number): Quadrant | null => {
     const task = activeTasks.find((t) => t.id === id);
@@ -341,6 +344,7 @@ export function EisenhowerMatrix({ selectedDate, onDateChange }: EisenhowerMatri
       {/* 已完成歷史區 */}
       <CompletedSection
         tasks={completedTasks}
+        weekLabel={weekRangeLabel(selectedDate)}
         onRestore={(id) => {
           setHistoryBusyId(id);
           updateTaskMutation.mutate(
